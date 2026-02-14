@@ -50,6 +50,7 @@ export class NPCManager {
       state: 'patrol',
       stateTimer: 0,
       attackCooldown: 0,
+      aggroTimer: 0, // when hit, chase player regardless of distance
     };
 
     npc.mesh.position.set(x, 0, z);
@@ -176,9 +177,12 @@ export class NPCManager {
       const detectRange = npc.isBoss ? 60 : NPC.DETECT_RANGE;
       const attackRange = npc.isBoss ? 4 : NPC.ATTACK_RANGE;
 
+      // Decay aggro timer
+      if (npc.aggroTimer > 0) npc.aggroTimer -= delta;
+
       if (distToPlayer < attackRange) {
         npc.state = 'attack';
-      } else if (distToPlayer < detectRange) {
+      } else if (distToPlayer < detectRange || npc.aggroTimer > 0) {
         npc.state = 'chase';
       } else {
         npc.state = 'patrol';
@@ -283,6 +287,16 @@ export class NPCManager {
     if (!npc || !npc.alive) return;
 
     npc.health -= damage;
+    // Aggro: chase player for 8 seconds after being hit
+    npc.aggroTimer = 8;
+
+    // Alert nearby zombies within 15 units
+    for (const other of this.npcs) {
+      if (other === npc || !other.alive || other.aggroTimer > 0) continue;
+      const dist = other.mesh.position.distanceTo(npc.mesh.position);
+      if (dist < 15) other.aggroTimer = 5;
+    }
+
     if (npc.health <= 0) {
       npc.alive = false;
       this.scene.remove(npc.mesh);

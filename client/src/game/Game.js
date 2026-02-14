@@ -67,7 +67,10 @@ export class Game {
     const coinDrop = npc.coinDrop || NPC_CONST.COIN_DROP;
     this.player.addCoins(coinDrop);
     this.hud.showCoinPopup(coinDrop);
-    this.killCount++;
+
+    // Fast and tank zombies count as 2 kills
+    const killValue = (npc.type === 'fast' || npc.type === 'tank') ? 2 : 1;
+    this.killCount += killValue;
     this.hud.updateKillCount(this.killCount);
 
     if (npc.isBoss) {
@@ -80,8 +83,8 @@ export class Game {
       this.hud.addKillFeedEntry('You', npc.typeName || 'Zombie');
     }
 
-    // Boss spawn every 100 kills
-    if (this.killCount % 100 === 0 && !this.npcManager.bossAlive) {
+    // Boss spawn every 50 kills
+    if (this.killCount >= 50 && this.killCount % 50 < killValue && !this.npcManager.bossAlive) {
       this.npcManager.spawnBoss();
       this.hud.showBossAlert('BOSS ZOMBIE APPEARED!');
     }

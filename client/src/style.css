@@ -427,12 +427,13 @@ canvas { display: block; }
   #minimap canvas { width: 100px; height: 100px; }
   #health-bar { bottom: 16px; left: 16px; width: 150px; }
   #health-text { bottom: 28px; left: 16px; font-size: 11px; }
-  #ammo-display { bottom: 170px; right: 24px; padding: 4px 10px; }
+  #ammo-display { bottom: 42px; left: 180px; right: auto; padding: 4px 10px; }
   #ammo-current { font-size: 34px; }
   #ammo-max { font-size: 14px; }
-  #weapon-info { bottom: 200px; right: 24px; }
-  #weapon-icon { width: 36px; height: 20px; }
+  #weapon-info { bottom: 72px; left: 180px; right: auto; text-align: left; }
+  #weapon-icon { width: 36px; height: 20px; margin-left: 0; }
   #weapon-name { font-size: 11px; }
+  #weapon-slots { justify-content: flex-start; }
   #weapon-slots .slot { width: 22px; height: 22px; font-size: 10px; }
   #player-count { top: 115px; right: 12px; font-size: 10px; }
   #kill-feed { top: 8px; left: 8px; }
