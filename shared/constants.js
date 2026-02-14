@@ -8,9 +8,9 @@ export const GAME = {
 };
 
 export const PLAYER = {
-  SPEED: 12,
-  SPRINT_SPEED: 18,
-  JUMP_FORCE: 8,
+  SPEED: 25,
+  SPRINT_SPEED: 45,
+  JUMP_FORCE: 12,
   MAX_HEALTH: 100,
   HEIGHT: 4,               // 로블록스 캐릭터 높이
   RADIUS: 0.7,

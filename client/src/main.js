@@ -2,29 +2,50 @@
 import './style.css';
 import { Game } from './game/Game.js';
 
-try {
-  document.getElementById('hud').classList.add('active');
+document.getElementById('hud').classList.add('active');
 
-  const game = new Game();
-  console.log('[Main] Game created successfully');
+const game = new Game();
+game.start();
 
-  game.start();
-  console.log('[Main] Game started successfully');
+const pauseMenu = document.getElementById('pause-menu');
+const btnResume = document.getElementById('btn-resume');
+const btnControls = document.getElementById('btn-controls');
+let isPaused = false;
 
-  // Click to lock pointer for FPS controls
-  document.addEventListener('click', () => {
-    if (!document.pointerLockElement) {
-      document.body.requestPointerLock();
-    }
-  });
-
-  // Handle pointer lock changes
-  document.addEventListener('pointerlockchange', () => {
-    if (!document.pointerLockElement) {
-      game.pause();
-    }
-  });
-} catch (err) {
-  console.error('[Main] FATAL ERROR:', err);
-  document.body.innerHTML = `<div style="color:red;padding:20px;font-size:20px;">ERROR: ${err.message}</div>`;
+function showPause() {
+  isPaused = true;
+  pauseMenu.classList.add('active');
 }
+
+function hidePause() {
+  isPaused = false;
+  pauseMenu.classList.remove('active');
+  document.body.requestPointerLock();
+}
+
+// Click to lock pointer for FPS controls
+document.addEventListener('click', (e) => {
+  if (!isPaused && !document.pointerLockElement) {
+    document.body.requestPointerLock();
+  }
+});
+
+// ESC releases pointer lock → show pause menu
+document.addEventListener('pointerlockchange', () => {
+  if (!document.pointerLockElement) {
+    showPause();
+    game.pause();
+  }
+});
+
+// Resume button
+btnResume.addEventListener('click', (e) => {
+  e.stopPropagation();
+  hidePause();
+});
+
+// Controls button
+btnControls.addEventListener('click', (e) => {
+  e.stopPropagation();
+  alert('WASD: Move\nR (hold): Sprint\nSpace: Jump\nMouse: Look\nLeft Click: Shoot\nESC: Pause');
+});

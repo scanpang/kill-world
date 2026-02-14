@@ -36,15 +36,12 @@ export class Player {
   setupInput() {
     document.addEventListener('keydown', (e) => {
       this.keys[e.code] = true;
-      if (e.code === 'ShiftLeft') this.isSprinting = true;
-      if (['KeyW','KeyA','KeyS','KeyD'].includes(e.code)) {
-        console.log('[Player] Key pressed:', e.code, 'body:', !!this.body);
-      }
+      if (e.code === 'KeyR') this.isSprinting = true;
     });
 
     document.addEventListener('keyup', (e) => {
       this.keys[e.code] = false;
-      if (e.code === 'ShiftLeft') this.isSprinting = false;
+      if (e.code === 'KeyR') this.isSprinting = false;
     });
 
     document.addEventListener('mousemove', (e) => {
@@ -57,10 +54,7 @@ export class Player {
   }
 
   update(delta) {
-    if (this.isDead || !this.body) {
-      if (!this._warned) { console.warn('[Player] update skipped - dead:', this.isDead, 'body:', !!this.body); this._warned = true; }
-      return;
-    }
+    if (this.isDead || !this.body) return;
 
     const speed = this.isSprinting ? PLAYER.SPRINT_SPEED : PLAYER.SPEED;
 
@@ -137,7 +131,6 @@ export class Player {
   respawn() {
     this.health = PLAYER.MAX_HEALTH;
     this.isDead = false;
-    // Random spawn position
     const angle = Math.random() * Math.PI * 2;
     const dist = 20 + Math.random() * 30;
     this.body.position.set(Math.cos(angle) * dist, 5, Math.sin(angle) * dist);

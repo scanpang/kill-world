@@ -116,3 +116,39 @@ canvas { display: block; }
 #hit-marker .hm:nth-child(4) { width: 2px; height: 10px; left: -1px; top: 4px; transform: rotate(-45deg); }
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; } }
+
+/* Pause Menu */
+#pause-menu {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0, 0, 0, 0.7);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+#pause-menu.active { display: flex; }
+#pause-menu h2 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 36px;
+  font-weight: 900;
+  color: #ff6b35;
+  margin-bottom: 20px;
+}
+#pause-menu button {
+  width: 200px;
+  padding: 12px 0;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 6px;
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+#pause-menu button:hover {
+  background: rgba(255,255,255,0.15);
+  border-color: #ff6b35;
+}
