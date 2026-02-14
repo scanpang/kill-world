@@ -72,6 +72,32 @@ const ICONS = {
     <rect x="21" y="8" width="6" height="12" fill="#fff"/>
     <rect x="17" y="11" width="14" height="6" fill="#fff"/>
   </svg>`,
+
+  MaxHPUp: `<svg viewBox="0 0 48 28" fill="currentColor">
+    <rect x="14" y="4" width="20" height="20" rx="3" fill="#22aa44"/>
+    <rect x="21" y="8" width="6" height="12" fill="#fff"/>
+    <rect x="17" y="11" width="14" height="6" fill="#fff"/>
+    <polygon points="36,4 40,10 36,8 32,10" fill="#ffcc00"/>
+  </svg>`,
+
+  MagUp: `<svg viewBox="0 0 48 28" fill="currentColor">
+    <rect x="10" y="6" width="28" height="18" rx="2" fill="#5c4a1e"/>
+    <rect x="13" y="9" width="22" height="12" rx="1" fill="#3a3010"/>
+    <rect x="18" y="12" width="4" height="6" fill="#ffcc00"/>
+    <rect x="24" y="12" width="4" height="6" fill="#ffcc00"/>
+    <rect x="30" y="12" width="4" height="6" fill="#ffcc00"/>
+  </svg>`,
+
+  SpeedUp: `<svg viewBox="0 0 48 28" fill="currentColor">
+    <polygon points="18,4 32,14 18,14 30,24" fill="#ffcc00"/>
+    <polygon points="22,8 30,14 22,14 28,20" fill="#ff8800"/>
+  </svg>`,
+
+  CritUp: `<svg viewBox="0 0 48 28" fill="currentColor">
+    <circle cx="24" cy="14" r="10" fill="none" stroke="#ff4444" stroke-width="2"/>
+    <circle cx="24" cy="14" r="5" fill="none" stroke="#ff4444" stroke-width="1.5"/>
+    <circle cx="24" cy="14" r="1.5" fill="#ff4444"/>
+  </svg>`,
 };
 
 export function getWeaponIcon(id) {

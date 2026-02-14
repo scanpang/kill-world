@@ -10,7 +10,8 @@ export class NPCManager {
     this.map = null;
     this.sound = null;
     this.bossAlive = false;
-    this.zombieLevel = 1; // increases when boss dies
+    this.bossKillCount = 0;
+    this.zombieLevel = 1;
     this.lastGrowlTime = 0;
   }
 
@@ -30,25 +31,44 @@ export class NPCManager {
 
   randomType() {
     const r = Math.random();
-    if (r < 0.15) return 'tank';
-    if (r < 0.40) return 'fast';
+    if (r < 0.10) return 'tank';
+    if (r < 0.22) return 'shield';
+    if (r < 0.45) return 'fast';
     return 'normal';
   }
 
   spawnNPC(x, z, type = 'normal') {
     const cfg = NPC_TYPES[type];
-    const lvl = type === 'boss' ? this.zombieLevel + 5 : this.zombieLevel;
-    // All stats scale 10% per level
-    const levelMul = 1 + (lvl - 1) * 0.1;
+    const lvl = this.zombieLevel;
+
+    let health, speed, damage;
+
+    if (type === 'boss') {
+      // Boss HP scales ×1.4 per boss kill
+      health = Math.floor(cfg.health * Math.pow(1.4, this.bossKillCount));
+      // Boss ATK/Speed scale with zombie level
+      const atkMul = 1 + (lvl - 1) * 0.08;
+      const spdMul = 1 + (lvl - 1) * 0.03;
+      damage = Math.floor(cfg.dmg * atkMul);
+      speed = cfg.speed * spdMul;
+    } else {
+      // Regular zombies: ATK +8%, HP +10%, Speed +3% per level
+      const atkMul = 1 + (lvl - 1) * 0.08;
+      const hpMul = 1 + (lvl - 1) * 0.10;
+      const spdMul = 1 + (lvl - 1) * 0.03;
+      health = Math.floor(cfg.health * hpMul);
+      damage = Math.floor(cfg.dmg * atkMul);
+      speed = cfg.speed * spdMul;
+    }
 
     const npc = {
       mesh: this.createNPCMesh(cfg, lvl),
       alive: true,
-      health: Math.floor(cfg.health * levelMul),
-      maxHealth: Math.floor(cfg.health * levelMul),
-      speed: cfg.speed * levelMul,
-      coinDrop: Math.floor(cfg.coinDrop * levelMul),
-      damage: Math.floor(cfg.dmg * levelMul),
+      health: health,
+      maxHealth: health,
+      speed: speed,
+      coinDrop: Math.floor(cfg.coinDrop * (1 + (lvl - 1) * 0.1)),
+      damage: damage,
       typeName: cfg.name,
       type: type,
       level: lvl,
@@ -83,17 +103,17 @@ export class NPCManager {
       if (!npc.alive || npc.isBoss) continue;
       const cfg = NPC_TYPES[npc.type];
       const lvl = this.zombieLevel;
-      // All stats scale 10% per level
-      const levelMul = 1 + (lvl - 1) * 0.1;
+      const atkMul = 1 + (lvl - 1) * 0.08;
+      const hpMul = 1 + (lvl - 1) * 0.10;
+      const spdMul = 1 + (lvl - 1) * 0.03;
 
       npc.level = lvl;
-      npc.maxHealth = Math.floor(cfg.health * levelMul);
+      npc.maxHealth = Math.floor(cfg.health * hpMul);
       npc.health = npc.maxHealth;
-      npc.speed = cfg.speed * levelMul;
-      npc.damage = Math.floor(cfg.dmg * levelMul);
-      npc.coinDrop = Math.floor(cfg.coinDrop * levelMul);
+      npc.speed = cfg.speed * spdMul;
+      npc.damage = Math.floor(cfg.dmg * atkMul);
+      npc.coinDrop = Math.floor(cfg.coinDrop * (1 + (lvl - 1) * 0.1));
 
-      // Update level label
       this.updateLevelLabel(npc);
     }
   }
@@ -106,19 +126,16 @@ export class NPCManager {
 
     ctx.clearRect(0, 0, 128, 48);
 
-    // Background pill
     ctx.fillStyle = isBoss ? 'rgba(128,0,255,0.7)' : 'rgba(0,0,0,0.6)';
     const w = 100, h = 32, x = 14, y = 8;
     ctx.beginPath();
     ctx.roundRect(x, y, w, h, 8);
     ctx.fill();
 
-    // Border
     ctx.strokeStyle = isBoss ? '#ff00ff' : 'rgba(255,255,255,0.3)';
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Text
     ctx.fillStyle = isBoss ? '#ffcc00' : '#fff';
     ctx.font = 'bold 22px sans-serif';
     ctx.textAlign = 'center';
@@ -152,7 +169,6 @@ export class NPCManager {
     const s = cfg.scale;
     const mat = (color) => new THREE.MeshStandardMaterial({ color });
 
-    // Head
     const head = new THREE.Mesh(
       new THREE.BoxGeometry(1.0 * s, 1.0 * s, 1.0 * s),
       mat(0xcc9966)
@@ -160,7 +176,6 @@ export class NPCManager {
     head.position.y = 3.2 * s;
     head.castShadow = true;
 
-    // Eyes (boss = purple glow)
     const eyeColor = cfg === NPC_TYPES.boss ? 0xff00ff : 0xff0000;
     const eyeMat = new THREE.MeshStandardMaterial({
       color: eyeColor, emissive: eyeColor, emissiveIntensity: 0.8,
@@ -171,7 +186,6 @@ export class NPCManager {
     const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
     rightEye.position.set(0.22 * s, 3.3 * s, 0.51 * s);
 
-    // Body
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(1.2 * s, 1.4 * s, 0.7 * s),
       mat(cfg.bodyColor)
@@ -179,7 +193,6 @@ export class NPCManager {
     body.position.y = 2.0 * s;
     body.castShadow = true;
 
-    // Arms
     const armGeo = new THREE.BoxGeometry(0.4 * s, 1.2 * s, 0.4 * s);
     const armMat = mat(cfg.bodyColor);
     const leftArm = new THREE.Mesh(armGeo, armMat);
@@ -187,7 +200,6 @@ export class NPCManager {
     const rightArm = new THREE.Mesh(armGeo, armMat);
     rightArm.position.set(0.8 * s, 2.0 * s, 0);
 
-    // Legs
     const legGeo = new THREE.BoxGeometry(0.5 * s, 1.2 * s, 0.5 * s);
     const legMat = mat(0x333333);
     const leftLeg = new THREE.Mesh(legGeo, legMat);
@@ -195,7 +207,6 @@ export class NPCManager {
     const rightLeg = new THREE.Mesh(legGeo, legMat);
     rightLeg.position.set(0.3 * s, 0.6 * s, 0);
 
-    // Health bar
     const hpBg = new THREE.Mesh(
       new THREE.BoxGeometry(1.2 * s, 0.12, 0.05),
       mat(0x333333)
@@ -224,7 +235,7 @@ export class NPCManager {
       group.add(lHorn, rHorn);
     }
 
-    // Tank shield
+    // Tank shield (visual only)
     if (cfg === NPC_TYPES.tank) {
       const shieldGeo = new THREE.BoxGeometry(1.4 * s, 1.6 * s, 0.15 * s);
       const shieldMat = new THREE.MeshStandardMaterial({
@@ -235,7 +246,27 @@ export class NPCManager {
       group.add(shield);
     }
 
-    // Level label above head
+    // Shield zombie - front shield (functional: 50% front damage reduction)
+    if (cfg === NPC_TYPES.shield) {
+      const shieldGeo = new THREE.BoxGeometry(1.4 * s, 2.2 * s, 0.12 * s);
+      const shieldMat = new THREE.MeshStandardMaterial({
+        color: 0x44aa44, transparent: true, opacity: 0.5,
+      });
+      const shield = new THREE.Mesh(shieldGeo, shieldMat);
+      shield.position.set(0, 1.8 * s, 0.55 * s);
+      group.add(shield);
+
+      // Shield border glow
+      const borderGeo = new THREE.BoxGeometry(1.5 * s, 2.3 * s, 0.04 * s);
+      const borderMat = new THREE.MeshStandardMaterial({
+        color: 0x66ff66, emissive: 0x66ff66, emissiveIntensity: 0.3,
+        transparent: true, opacity: 0.3,
+      });
+      const border = new THREE.Mesh(borderGeo, borderMat);
+      border.position.set(0, 1.8 * s, 0.6 * s);
+      group.add(border);
+    }
+
     const isBoss = cfg === NPC_TYPES.boss;
     const label = this.createLevelLabel(level, isBoss);
     label.position.set(0, (3.8 + 1.2) * s, 0);
@@ -257,14 +288,12 @@ export class NPCManager {
       if (!npc.alive) continue;
 
       const npcPos = npc.mesh.position;
-      // Fast XZ distance (no object allocation)
       const ddx = npcPos.x - px, ddz = npcPos.z - pz;
       const distToPlayer = Math.sqrt(ddx * ddx + ddz * ddz);
 
       const detectRange = npc.isBoss ? 60 : NPC.DETECT_RANGE;
       const attackRange = npc.isBoss ? 4 : NPC.ATTACK_RANGE;
 
-      // Decay aggro timer
       if (npc.aggroTimer > 0) npc.aggroTimer -= delta;
 
       if (distToPlayer < attackRange) {
@@ -281,7 +310,6 @@ export class NPCManager {
         case 'attack': this.updateAttack(npc, delta, playerPos); break;
       }
 
-      // Zombie growl when close (throttled)
       if (this.sound && distToPlayer < 20 && npc.state !== 'patrol') {
         const now = performance.now();
         if (now - this.lastGrowlTime > 3000) {
@@ -292,7 +320,6 @@ export class NPCManager {
 
       this.animateWalk(npc, delta);
 
-      // HP bar (cached reference)
       const hpFill = npc.hpFill || (npc.hpFill = npc.mesh.getObjectByName('hpFill'));
       if (hpFill) {
         const scale = npc.health / npc.maxHealth;
@@ -342,7 +369,6 @@ export class NPCManager {
     let nx = npc.mesh.position.x + dir.x * speed * delta;
     let nz = npc.mesh.position.z + dir.z * speed * delta;
 
-    // Wall collision
     if (this.map) {
       const r = npc.isBoss ? 2.0 : 0.8;
       const resolved = this.map.resolveCollision(nx, nz, r);
@@ -350,7 +376,6 @@ export class NPCManager {
       nz = resolved.z;
     }
 
-    // Map boundary clamp
     const half = GAME.MAP_SIZE / 2 - 3;
     nx = Math.max(-half, Math.min(half, nx));
     nz = Math.max(-half, Math.min(half, nz));
@@ -389,10 +414,8 @@ export class NPCManager {
 
     npc.health -= damage;
     if (this.sound) this.sound.playZombieHit();
-    // Aggro: chase player for 8 seconds after being hit
     npc.aggroTimer = 8;
 
-    // Alert nearby zombies within 15 units
     for (const other of this.npcs) {
       if (other === npc || !other.alive || other.aggroTimer > 0) continue;
       const dist = other.mesh.position.distanceTo(npc.mesh.position);
@@ -406,30 +429,31 @@ export class NPCManager {
 
       if (npc.isBoss) {
         this.bossAlive = false;
-        return; // Boss does not respawn
+        this.bossKillCount++;
+        return;
       }
 
-      // Respawn as random type
       setTimeout(() => {
         const newType = this.randomType();
         const cfg = NPC_TYPES[newType];
         const lvl = this.zombieLevel;
-        const levelMul = 1 + (lvl - 1) * 0.1;
+        const atkMul = 1 + (lvl - 1) * 0.08;
+        const hpMul = 1 + (lvl - 1) * 0.10;
+        const spdMul = 1 + (lvl - 1) * 0.03;
 
         npc.type = newType;
         npc.typeName = cfg.name;
         npc.level = lvl;
-        npc.health = Math.floor(cfg.health * levelMul);
+        npc.health = Math.floor(cfg.health * hpMul);
         npc.maxHealth = npc.health;
-        npc.speed = cfg.speed * levelMul;
-        npc.coinDrop = Math.floor(cfg.coinDrop * levelMul);
-        npc.damage = Math.floor(cfg.dmg * levelMul);
+        npc.speed = cfg.speed * spdMul;
+        npc.coinDrop = Math.floor(cfg.coinDrop * (1 + (lvl - 1) * 0.1));
+        npc.damage = Math.floor(cfg.dmg * atkMul);
         npc.isBoss = false;
         npc.alive = true;
         npc.state = 'patrol';
         npc.aggroTimer = 0;
 
-        // Rebuild mesh
         npc.mesh.traverse(child => {
           if (child.geometry) child.geometry.dispose();
           if (child.material) {
@@ -438,7 +462,7 @@ export class NPCManager {
           }
         });
         npc.mesh = this.createNPCMesh(cfg, lvl);
-        npc.hpFill = null; // reset cached ref
+        npc.hpFill = null;
         npc.mesh.position.set(npc.spawnPos.x, 0, npc.spawnPos.z);
         this.scene.add(npc.mesh);
       }, NPC.RESPAWN_TIME * 1000);

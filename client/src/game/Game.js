@@ -48,6 +48,19 @@ export class Game {
     this.bossKillCount = 0;
     this.gameOver = false;
 
+    // Wave tracking
+    this.wave = 1;
+
+    // Combo system
+    this.comboCount = 0;
+    this.comboTimer = 0;
+
+    // Slow motion
+    this.slowMotionTimer = 0;
+
+    // Weapon kill stats (for death screen)
+    this.weaponKills = {};
+
     // NPC attack → player damage
     window.__onNPCAttack = (damage) => {
       this.player.takeDamage(damage);
@@ -81,9 +94,29 @@ export class Game {
     this.player.addCoins(coinDrop);
     this.hud.showCoinPopup(coinDrop);
 
+    // Track weapon kills
+    const currentWeapon = this.weapons.currentWeaponId;
+    this.weaponKills[currentWeapon] = (this.weaponKills[currentWeapon] || 0) + 1;
+
+    // Combo system
+    this.comboTimer = 5;
+    this.comboCount++;
+    this.hud.updateCombo(this.comboCount);
+
+    if (this.comboCount === 10) {
+      this.slowMotionTimer = 2.0;
+      this.hud.showBossAlert('SLOW MOTION!');
+    }
+
     // XP from kill
     const npcCfg = NPC_TYPES[npc.type] || NPC_TYPES.normal;
-    const xpGain = npcCfg.xp || 1;
+    let xpGain = npcCfg.xp || 1;
+
+    // Combo XP bonus: 5+ kills = +10%
+    if (this.comboCount >= 5) {
+      xpGain = Math.ceil(xpGain * 1.1);
+    }
+
     const prevLevel = this.player.level;
     const leveled = this.player.addXP(xpGain);
 
@@ -94,10 +127,9 @@ export class Game {
       for (let i = 0; i < this.weapons.slots.length; i++) {
         const wid = this.weapons.slots[i];
         if (wid && WEAPONS[wid] && WEAPONS[wid].unique) {
-          this.weapons.slotAmmo[wid] = WEAPONS[wid].maxAmmo;
-          // If currently equipped, update current ammo too
+          this.weapons.slotAmmo[wid] = this.weapons.getEffectiveMaxAmmo(wid);
           if (this.weapons.currentWeaponId === wid) {
-            this.weapons.currentAmmo = WEAPONS[wid].maxAmmo;
+            this.weapons.currentAmmo = this.weapons.getEffectiveMaxAmmo(wid);
           }
         }
       }
@@ -108,20 +140,36 @@ export class Game {
 
     if (npc.isBoss) {
       this.bossKillCount++;
+      this.wave = this.bossKillCount + 1;
 
-      // Random unique weapon drop
-      const pool = BOSS_UNIQUE_WEAPONS;
-      const dropId = pool[Math.floor(Math.random() * pool.length)];
-      this.weapons.slots[3] = dropId;
-      this.weapons.slotAmmo[dropId] = WEAPONS[dropId].maxAmmo;
-      this.weapons.switchSlot(3);
+      // 30% chance to drop special weapon
+      if (Math.random() < 0.3) {
+        const pool = BOSS_UNIQUE_WEAPONS;
+        const dropId = pool[Math.floor(Math.random() * pool.length)];
+        this.weapons.slots[3] = dropId;
+        this.weapons.slotAmmo[dropId] = this.weapons.getEffectiveMaxAmmo(dropId);
+        this.weapons.switchSlot(3);
+        this.hud.showBossAlert(`BOSS DEFEATED! ${WEAPONS[dropId].name} ACQUIRED!`);
+        this.hud.showWeaponDropEffect();
+      } else {
+        this.hud.showBossAlert('BOSS DEFEATED!');
+      }
 
-      this.hud.showBossAlert(`BOSS DEFEATED! ${this.weapons.config.name} ACQUIRED!`);
       this.hud.addKillFeedEntry('You', 'BOSS');
+
+      // Full HP recovery on boss kill
+      this.player.health = this.player.maxHealth;
 
       // Boss death → all zombies level up
       this.npcManager.levelUpZombies();
       this.hud.showZombieLevelUp(this.npcManager.zombieLevel);
+
+      // Open shop (one-time after boss defeat)
+      this.hud.shopAvailable = true;
+      setTimeout(() => this.hud.toggleShop(), 1500);
+
+      // Boss kill screen effect
+      this.hud.showScreenFlash(0x8800ff);
     } else {
       this.hud.addKillFeedEntry('You', npc.typeName || 'Zombie');
     }
@@ -130,7 +178,13 @@ export class Game {
     if (this.killCount >= 50 && this.killCount % 50 === 0 && !this.npcManager.bossAlive) {
       this.npcManager.spawnBoss();
       this.hud.showBossAlert('BOSS ZOMBIE APPEARED!');
+      this.hud.screenShake();
     }
+  }
+
+  // Called from WeaponSystem on headshot hit
+  onHeadshotXP() {
+    this.player.addXP(1);
   }
 
   showDeathScreen() {
@@ -143,10 +197,25 @@ export class Game {
       document.getElementById('death-kills').textContent = this.killCount;
       document.getElementById('death-level').textContent = this.player.level;
       document.getElementById('death-xp').textContent = this.player.totalXP;
+      document.getElementById('death-wave').textContent = this.wave;
+
+      // Weapon usage stats
+      const statsEl = document.getElementById('death-weapon-stats');
+      if (statsEl) {
+        statsEl.innerHTML = '';
+        const sorted = Object.entries(this.weaponKills).sort((a, b) => b[1] - a[1]);
+        for (const [wid, count] of sorted) {
+          const wName = WEAPONS[wid] ? WEAPONS[wid].name : wid;
+          const div = document.createElement('div');
+          div.className = 'weapon-stat-row';
+          div.textContent = `${wName}: ${count} kills`;
+          statsEl.appendChild(div);
+        }
+      }
+
       overlay.classList.add('active');
     }
 
-    // Restart button
     const restartBtn = document.getElementById('death-restart');
     if (restartBtn) {
       restartBtn.onclick = () => location.reload();
@@ -159,12 +228,28 @@ export class Game {
     if (!this.isRunning) return;
     requestAnimationFrame(() => this.loop());
 
-    const delta = this.clock.getDelta();
+    const realDelta = this.clock.getDelta();
+    let delta = realDelta;
 
     // Check death during gameplay
     if (this.player.isDead && !this.gameOver) {
       this.showDeathScreen();
       return;
+    }
+
+    // Combo timer decay (real time)
+    if (this.comboTimer > 0) {
+      this.comboTimer -= realDelta;
+      if (this.comboTimer <= 0) {
+        this.comboCount = 0;
+        this.hud.updateCombo(0);
+      }
+    }
+
+    // Slow motion
+    if (this.slowMotionTimer > 0) {
+      this.slowMotionTimer -= realDelta;
+      delta *= 0.3;
     }
 
     this.mobileControls.update();
@@ -195,6 +280,7 @@ export class Game {
       xp: this.player.xp,
       xpToNext: this.player.xpToNext,
       damageBonus: Math.round((this.player.damageMultiplier - 1) * 100),
+      wave: this.wave,
     });
 
     this.network.sendPosition(

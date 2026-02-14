@@ -29,11 +29,19 @@ export class Player {
     // Level & XP
     this.level = 1;
     this.xp = 0;
-    this.xpToNext = 100;    // doubles each level
-    this.totalXP = 0;       // accumulated total for death screen
+    this.xpToNext = 100;         // 100 × 1.6^(level-1)
+    this.totalXP = 0;            // accumulated total for death screen
 
     // Damage multiplier (increases 10% per level)
     this.damageMultiplier = 1.0;
+
+    // Level-based bonuses
+    this.bonusSpeed = 0;         // +2 per level
+
+    // Shop-based bonuses
+    this.speedBonus = 0;         // +5% per purchase
+    this.critChance = 0;         // +5% per purchase
+    this.magBonus = 0;           // +20% per purchase
 
     // Map reference for collision
     this.map = null;
@@ -114,8 +122,10 @@ export class Player {
     while (this.xp >= this.xpToNext) {
       this.xp -= this.xpToNext;
       this.level++;
-      this.xpToNext = 100 * Math.pow(2, this.level - 1);
+      this.xpToNext = Math.floor(100 * Math.pow(1.6, this.level - 1));
       this.damageMultiplier = 1 + (this.level - 1) * 0.1;
+      this.maxHealth = PLAYER.MAX_HEALTH + (this.level - 1) * 5;
+      this.bonusSpeed = (this.level - 1) * 2;
       leveled = true;
     }
     return leveled;
@@ -125,7 +135,7 @@ export class Player {
     if (this.isDead) return;
 
     const baseSpeed = this.isSprinting ? PLAYER.SPRINT_SPEED : PLAYER.SPEED;
-    let speed = baseSpeed;
+    let speed = (baseSpeed + this.bonusSpeed) * (1 + this.speedBonus);
 
     const forward = new THREE.Vector3(
       -Math.sin(this.rotation.y), 0, -Math.cos(this.rotation.y)
@@ -144,7 +154,7 @@ export class Player {
     if (mobileLen > 0.1) {
       moveDir.addScaledVector(right, this.mobileMove.x);
       moveDir.addScaledVector(forward, -this.mobileMove.y);
-      speed = PLAYER.SPEED * Math.min(mobileLen, 1.0);
+      speed = (PLAYER.SPEED + this.bonusSpeed) * (1 + this.speedBonus) * Math.min(mobileLen, 1.0);
     }
 
     if (moveDir.length() > 0) moveDir.normalize();
@@ -197,6 +207,5 @@ export class Player {
 
   die() {
     this.isDead = true;
-    // Game over - handled by Game.js
   }
 }

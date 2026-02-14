@@ -19,7 +19,9 @@ export class HUD {
     this.shopCoinsEl = document.getElementById('shop-coins');
     this.levelEl = document.getElementById('player-level');
     this.xpFillEl = document.getElementById('xp-fill');
+    this.comboEl = document.getElementById('combo-counter');
     this.shopOpen = false;
+    this.shopAvailable = false; // Only available after boss kill
     this.game = null;
 
     this.buildShopItems();
@@ -48,27 +50,26 @@ export class HUD {
 
   setupShop() {
     document.addEventListener('keydown', (e) => {
-      if (e.code === 'KeyB') this.toggleShop();
+      if (e.code === 'KeyB' && this.shopAvailable) this.toggleShop();
     });
 
     const shopBtn = document.getElementById('btn-shop');
     if (shopBtn) {
       shopBtn.addEventListener('touchstart', (e) => {
         e.preventDefault();
-        this.toggleShop();
+        if (this.shopAvailable) this.toggleShop();
       }, { passive: false });
     }
 
     const shopClose = document.getElementById('shop-close');
     if (shopClose) {
-      shopClose.addEventListener('click', () => this.toggleShop());
+      shopClose.addEventListener('click', () => this.closeShop());
       shopClose.addEventListener('touchstart', (e) => {
         e.preventDefault();
-        this.toggleShop();
+        this.closeShop();
       }, { passive: false });
     }
 
-    // Delegate click on shop items (PC only)
     const container = document.getElementById('shop-items');
     if (container) {
       container.addEventListener('click', (e) => {
@@ -77,7 +78,6 @@ export class HUD {
         if (item) this.buyItem(item.dataset.id);
       });
 
-      // Mobile: differentiate scroll vs tap
       let touchStartY = 0;
       let touchStartItem = null;
       container.addEventListener('touchstart', (e) => {
@@ -98,17 +98,29 @@ export class HUD {
   }
 
   toggleShop() {
-    this.shopOpen = !this.shopOpen;
-    const shop = document.getElementById('shop-panel');
-    if (shop) shop.classList.toggle('active', this.shopOpen);
-
     if (this.shopOpen) {
-      this.updateShopAffordability();
-      if (document.pointerLockElement) document.exitPointerLock();
+      this.closeShop();
     } else {
-      const canvas = document.querySelector('canvas');
-      if (canvas && !('ontouchstart' in window)) canvas.requestPointerLock();
+      this.openShop();
     }
+  }
+
+  openShop() {
+    if (!this.shopAvailable) return;
+    this.shopOpen = true;
+    const shop = document.getElementById('shop-panel');
+    if (shop) shop.classList.add('active');
+    this.updateShopAffordability();
+    if (document.pointerLockElement) document.exitPointerLock();
+  }
+
+  closeShop() {
+    this.shopOpen = false;
+    this.shopAvailable = false; // One-time per boss
+    const shop = document.getElementById('shop-panel');
+    if (shop) shop.classList.remove('active');
+    const canvas = document.querySelector('canvas');
+    if (canvas && !('ontouchstart' in window)) canvas.requestPointerLock();
   }
 
   updateShopAffordability() {
@@ -129,19 +141,38 @@ export class HUD {
 
     this.game.player.coins -= shopItem.price;
 
-    if (itemId === 'HealthPack') {
-      this.game.player.health = Math.min(
-        this.game.player.health + 50,
-        this.game.player.maxHealth
-      );
-    } else {
-      // It's a weapon - place in correct slot
-      const weaponConfig = WEAPONS[itemId];
-      if (weaponConfig) {
-        const slot = shopItem.slot !== undefined ? shopItem.slot : weaponConfig.slot;
-        this.game.weapons.slots[slot] = itemId;
-        this.game.weapons.slotAmmo[itemId] = weaponConfig.maxAmmo;
-        this.game.weapons.switchSlot(slot);
+    switch (itemId) {
+      case 'HealthPack':
+        this.game.player.health = Math.min(
+          this.game.player.health + Math.floor(this.game.player.maxHealth * 0.3),
+          this.game.player.maxHealth
+        );
+        break;
+      case 'MaxHPUp':
+        this.game.player.maxHealth += 20;
+        this.game.player.health += 20;
+        break;
+      case 'MagUp':
+        this.game.player.magBonus += 0.2;
+        // Update current weapon max ammo
+        this.game.weapons.maxAmmo = this.game.weapons.getEffectiveMaxAmmo(this.game.weapons.currentWeaponId);
+        break;
+      case 'SpeedUp':
+        this.game.player.speedBonus += 0.05;
+        break;
+      case 'CritUp':
+        this.game.player.critChance += 0.05;
+        break;
+      default: {
+        // Weapon purchase
+        const weaponConfig = WEAPONS[itemId];
+        if (weaponConfig) {
+          const slot = shopItem.slot !== undefined ? shopItem.slot : weaponConfig.slot;
+          this.game.weapons.slots[slot] = itemId;
+          this.game.weapons.slotAmmo[itemId] = this.game.weapons.getEffectiveMaxAmmo(itemId);
+          this.game.weapons.switchSlot(slot);
+        }
+        break;
       }
     }
 
@@ -161,6 +192,18 @@ export class HUD {
     if (this.killCountEl) this.killCountEl.textContent = `KILLS: ${count}`;
   }
 
+  updateCombo(count) {
+    if (!this.comboEl) return;
+    if (count >= 3) {
+      this.comboEl.textContent = `${count} COMBO`;
+      this.comboEl.classList.add('show');
+      if (count >= 5) this.comboEl.classList.add('bonus');
+      if (count >= 10) this.comboEl.classList.add('mega');
+    } else {
+      this.comboEl.classList.remove('show', 'bonus', 'mega');
+    }
+  }
+
   showBossAlert(text) {
     if (!this.bossAlertEl) return;
     this.bossAlertEl.textContent = text;
@@ -174,8 +217,35 @@ export class HUD {
     }, 2000);
   }
 
+  screenShake() {
+    const canvas = document.querySelector('canvas');
+    if (canvas) {
+      canvas.classList.add('screen-shake');
+      setTimeout(() => canvas.classList.remove('screen-shake'), 600);
+    }
+  }
+
+  showScreenFlash(color = 0xffffff) {
+    const flash = document.createElement('div');
+    flash.className = 'screen-flash';
+    const r = (color >> 16) & 0xff;
+    const g = (color >> 8) & 0xff;
+    const b = color & 0xff;
+    flash.style.background = `rgba(${r},${g},${b},0.4)`;
+    document.body.appendChild(flash);
+    setTimeout(() => flash.remove(), 600);
+  }
+
+  showWeaponDropEffect() {
+    const effect = document.createElement('div');
+    effect.className = 'weapon-drop-effect';
+    effect.textContent = 'SPECIAL WEAPON!';
+    document.getElementById('hud').appendChild(effect);
+    setTimeout(() => effect.remove(), 3000);
+  }
+
   update({ health, maxHealth, ammo, maxAmmo, playerCount, coins, weaponName,
-           currentSlot, isReloading, weaponId, level, xp, xpToNext, damageBonus }) {
+           currentSlot, isReloading, weaponId, level, xp, xpToNext, damageBonus, wave }) {
     const pct = (health / maxHealth) * 100;
     this.healthFill.style.width = pct + '%';
     if (pct > 50) {
@@ -199,7 +269,6 @@ export class HUD {
     if (this.coinDisplay) this.coinDisplay.textContent = `${coins}`;
     if (this.weaponName) this.weaponName.textContent = weaponName;
 
-    // Level & XP
     if (this.levelEl) {
       let levelText = `Lv.${level}`;
       if (damageBonus > 0) levelText += ` (+${damageBonus}%)`;
@@ -209,30 +278,32 @@ export class HUD {
       this.xpFillEl.style.width = ((xp / xpToNext) * 100) + '%';
     }
 
-    // Weapon icon
     if (this.weaponIconEl && weaponId) {
       this.weaponIconEl.innerHTML = getWeaponIcon(weaponId);
     }
 
-    // Weapon slots highlight
     if (this.weaponSlots) {
       const slots = this.weaponSlots.children;
       for (let i = 0; i < slots.length; i++) {
         slots[i].classList.toggle('active', i === currentSlot);
-        // Dim empty slots
         const hasWeapon = this.game && this.game.weapons.slots[i];
         slots[i].classList.toggle('empty-slot', !hasWeapon);
       }
     }
 
-    // Update shop coins if open
     if (this.shopOpen) this.updateShopAffordability();
   }
 
-  showHitMarker(isHeadshot = false) {
+  showHitMarker(isHeadshot = false, isCrit = false) {
     this.hitMarker.classList.add('show');
     this.hitMarker.querySelectorAll('.hm').forEach(el => {
-      el.style.background = isHeadshot ? '#ff0000' : '#fff';
+      if (isCrit) {
+        el.style.background = '#ffcc00';
+      } else if (isHeadshot) {
+        el.style.background = '#ff0000';
+      } else {
+        el.style.background = '#fff';
+      }
     });
     setTimeout(() => this.hitMarker.classList.remove('show'), 150);
   }

@@ -40,12 +40,19 @@ export class WeaponSystem {
     // Tracers & effects
     this.tracers = [];
 
-    // Shared materials (avoid creating new ones per shot)
+    // Shared materials
     this._tracerMat = new THREE.LineBasicMaterial({ color: 0xffcc00, transparent: true, opacity: 0.6 });
     this._impactGeo = new THREE.SphereGeometry(0.1, 4, 4);
     this._impactMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.8 });
 
     this.setupInput();
+  }
+
+  // Get effective max ammo considering magazine bonus
+  getEffectiveMaxAmmo(weaponId) {
+    const base = WEAPONS[weaponId] ? WEAPONS[weaponId].maxAmmo : 0;
+    if (base === Infinity) return Infinity;
+    return Math.floor(base * (1 + this.player.magBonus));
   }
 
   /* ── Weapon Models ── */
@@ -218,39 +225,30 @@ export class WeaponSystem {
 
   switchSlot(index) {
     if (index < 0 || index >= this.slots.length) return;
-
     const newWeaponId = this.slots[index];
-
-    // Skip if slot is empty
     if (!newWeaponId || !WEAPONS[newWeaponId]) return;
-
-    // Skip only if same slot AND same weapon
     if (index === this.currentSlot && newWeaponId === this.currentWeaponId) return;
 
-    // Save current slot ammo
     this.slotAmmo[this.currentWeaponId] = this.currentAmmo;
 
     this.currentSlot = index;
     this.currentWeaponId = newWeaponId;
     this.config = WEAPONS[this.currentWeaponId];
-    this.maxAmmo = this.config.maxAmmo;
+    this.maxAmmo = this.getEffectiveMaxAmmo(this.currentWeaponId);
 
-    // Cancel any pending reload from previous weapon
     if (this.reloadTimer) {
       clearTimeout(this.reloadTimer);
       this.reloadTimer = null;
     }
     this.isReloading = false;
 
-    // Restore saved ammo (or max if new weapon)
     if (this.slotAmmo[this.currentWeaponId] !== undefined) {
       this.currentAmmo = this.slotAmmo[this.currentWeaponId];
     } else {
-      this.currentAmmo = this.config.maxAmmo;
+      this.currentAmmo = this.maxAmmo;
       this.slotAmmo[this.currentWeaponId] = this.currentAmmo;
     }
 
-    // Rebuild weapon model
     this.camera.remove(this.gunModel);
     this.gunModel.traverse(c => { c.geometry?.dispose(); c.material?.dispose(); });
     this.gunModel = this.createWeaponModel(this.currentWeaponId);
@@ -265,11 +263,9 @@ export class WeaponSystem {
     if (now - this.lastShotTime < this.config.fireRate) return;
     this.lastShotTime = now;
     this.currentAmmo--;
-
-    // Save ammo to slot tracker
     this.slotAmmo[this.currentWeaponId] = this.currentAmmo;
 
-    if (this.currentAmmo <= 0 && this.config.reloadTime > 0) {
+    if (this.currentAmmo <= 0 && this.config.reloadTime > 0 && !this.config.unique) {
       this.reload();
     }
 
@@ -277,10 +273,7 @@ export class WeaponSystem {
       this.meleeAttack();
       if (this.sound) this.sound.playMelee();
     } else {
-      const pellets = this.config.pellets || 1;
-      for (let i = 0; i < pellets; i++) {
-        this.fireRay();
-      }
+      this.fireRay();
       this.applyRecoil();
       if (this.sound) this.sound.playGunshot(this.currentWeaponId);
     }
@@ -289,10 +282,13 @@ export class WeaponSystem {
   meleeAttack() {
     if (!this.game) return;
     const npcManager = this.game.npcManager;
-
-    // Apply damage multiplier from player level
     const baseDamage = this.config.damage;
-    const damage = Math.floor(baseDamage * this.player.damageMultiplier);
+    let damage = Math.floor(baseDamage * this.player.damageMultiplier);
+
+    // Crit chance
+    if (this.player.critChance > 0 && Math.random() < this.player.critChance) {
+      damage *= 2;
+    }
 
     for (let i = 0; i < npcManager.npcs.length; i++) {
       const npc = npcManager.npcs[i];
@@ -303,6 +299,17 @@ export class WeaponSystem {
       const dist = Math.sqrt(dx * dx + dz * dz);
 
       if (dist < this.config.range) {
+        // Shield zombie front damage reduction for melee
+        if (npc.type === 'shield') {
+          const nfx = Math.sin(npc.mesh.rotation.y);
+          const nfz = Math.cos(npc.mesh.rotation.y);
+          const dn = Math.sqrt(dx * dx + dz * dz);
+          if (dn > 0) {
+            const dot = (dx / dn) * nfx + (dz / dn) * nfz;
+            if (dot < -0.3) damage = Math.floor(damage * 0.5);
+          }
+        }
+
         npcManager.damageNPC(i, damage);
         this.game.hud.showHitMarker(false);
         if (npc.health <= 0) {
@@ -312,7 +319,6 @@ export class WeaponSystem {
       }
     }
 
-    // Melee swing animation
     this.gunModel.rotation.x = -0.5;
     setTimeout(() => { this.gunModel.rotation.x = 0; }, 200);
   }
@@ -328,12 +334,9 @@ export class WeaponSystem {
 
     const origin = this.camera.getWorldPosition(new THREE.Vector3());
 
-    // Apply damage multiplier from player level
     const baseDamage = this.config.damage;
     const damageMultiplier = this.player.damageMultiplier;
 
-    // Geometric ray-cylinder NPC hit test
-    // Separates horizontal (XZ) distance from vertical (Y) height check
     let hitNPC = null;
     let hitDist = this.config.range;
 
@@ -348,28 +351,24 @@ export class WeaponSystem {
         const cfg = NPC_TYPES[npc.type] || NPC_TYPES.normal;
         const npcPos = npc.mesh.position;
 
-        // XZ plane: find t where ray is closest to NPC horizontally
         const ox = origin.x - npcPos.x;
         const oz = origin.z - npcPos.z;
         const denom = dx * dx + dz * dz;
-        if (denom < 0.0001) continue; // looking straight up/down
+        if (denom < 0.0001) continue;
 
         const t = -(ox * dx + oz * dz) / denom;
         if (t < 0 || t > hitDist) continue;
 
-        // XZ perpendicular distance
         const cxz = ox + dx * t;
         const czz = oz + dz * t;
         const perpXZ = Math.sqrt(cxz * cxz + czz * czz);
         const hitRadius = 1.0 * cfg.scale;
         if (perpXZ > hitRadius) continue;
 
-        // Y check: ray height at t vs NPC height range
         const hitY = origin.y + dy * t;
         const npcTop = 3.8 * cfg.scale;
         if (hitY < -0.5 || hitY > npcTop + 0.5) continue;
 
-        // Valid hit
         if (t < hitDist) {
           hitDist = t;
           const hitPoint = new THREE.Vector3(
@@ -394,8 +393,31 @@ export class WeaponSystem {
       if (isHeadshot) damage = Math.floor(damage * this.config.headshotMul);
       damage = Math.floor(damage * damageMultiplier);
 
+      // Crit chance
+      let isCrit = false;
+      if (this.player.critChance > 0 && Math.random() < this.player.critChance) {
+        damage *= 2;
+        isCrit = true;
+      }
+
+      // Shield zombie: 50% reduced damage from front
+      if (npc.type === 'shield') {
+        const dx = direction.x, dz = direction.z;
+        const nfx = Math.sin(npc.mesh.rotation.y);
+        const nfz = Math.cos(npc.mesh.rotation.y);
+        const dot = dx * nfx + dz * nfz;
+        if (dot < -0.3) {
+          damage = Math.floor(damage * 0.5);
+        }
+      }
+
       this.game.npcManager.damageNPC(index, damage);
-      this.game.hud.showHitMarker(isHeadshot);
+      this.game.hud.showHitMarker(isHeadshot, isCrit);
+
+      // Headshot bonus XP
+      if (isHeadshot && this.game) {
+        this.game.onHeadshotXP();
+      }
 
       if (npc.health <= 0) {
         this.game.onNPCKill(index);
@@ -403,7 +425,7 @@ export class WeaponSystem {
       return;
     }
 
-    // No NPC hit - raycast scene for tracer endpoint only
+    // No NPC hit
     this.raycaster.set(origin, direction);
     this.raycaster.far = this.config.range;
     const intersects = this.raycaster.intersectObjects(this.scene.scene.children, true);
@@ -421,7 +443,6 @@ export class WeaponSystem {
       return;
     }
 
-    // Nothing hit - tracer goes to max range
     const endpoint = origin.clone().addScaledVector(direction, this.config.range);
     this.createTracer(origin, endpoint);
   }
@@ -450,18 +471,18 @@ export class WeaponSystem {
   }
 
   reload() {
-    // Block reload for unique weapons (special boss drops)
     if (this.config.unique) return;
     if (this.isReloading || this.config.reloadTime === 0) return;
-    if (this.currentAmmo === this.config.maxAmmo) return;
+    const effectiveMax = this.getEffectiveMaxAmmo(this.currentWeaponId);
+    if (this.currentAmmo === effectiveMax) return;
     this.isReloading = true;
     if (this.sound) this.sound.playReload();
     const weaponId = this.currentWeaponId;
     this.reloadTimer = setTimeout(() => {
-      // Only apply if still on the same weapon
       if (this.currentWeaponId === weaponId) {
-        this.currentAmmo = this.config.maxAmmo;
+        this.currentAmmo = this.getEffectiveMaxAmmo(weaponId);
         this.slotAmmo[weaponId] = this.currentAmmo;
+        this.maxAmmo = this.currentAmmo;
       }
       this.isReloading = false;
       this.reloadTimer = null;
@@ -473,13 +494,11 @@ export class WeaponSystem {
       this.shoot();
     }
 
-    // Update tracers/effects
     for (let i = this.tracers.length - 1; i >= 0; i--) {
       this.tracers[i].life -= delta;
       if (this.tracers[i].life <= 0) {
         const m = this.tracers[i].mesh;
         this.scene.remove(m);
-        // Only dispose unique geometries (tracers), not shared ones (impacts)
         if (m.isLine) m.geometry?.dispose();
         this.tracers.splice(i, 1);
       }
