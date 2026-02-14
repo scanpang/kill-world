@@ -9,9 +9,15 @@
 </head>
 <body>
 
+  <!-- Rotate Notice (mobile portrait) -->
+  <div id="rotate-notice">
+    <div class="rotate-icon">&#x21BB;</div>
+    <div class="rotate-text">ROTATE YOUR DEVICE</div>
+    <div class="rotate-sub">Landscape mode required</div>
+  </div>
+
   <!-- HUD -->
   <div id="hud">
-    <!-- Crosshair -->
     <div class="crosshair">
       <div class="line top"></div>
       <div class="line bottom"></div>
@@ -19,17 +25,14 @@
       <div class="line right"></div>
     </div>
 
-    <!-- Hit Marker -->
     <div id="hit-marker">
       <div class="hm"></div><div class="hm"></div>
       <div class="hm"></div><div class="hm"></div>
     </div>
 
-    <!-- Health -->
     <span id="health-text">HP</span>
     <div id="health-bar"><div id="health-fill"></div></div>
 
-    <!-- Coins & Kill Count -->
     <div id="coin-container">
       <span id="coin-icon">$</span>
       <span id="coin-display">0</span>
@@ -38,6 +41,7 @@
 
     <!-- Weapon Info -->
     <div id="weapon-info">
+      <div id="weapon-icon"></div>
       <div id="weapon-name">기관총</div>
       <div id="weapon-slots">
         <div class="slot active">1</div>
@@ -47,65 +51,28 @@
       </div>
     </div>
 
-    <!-- Ammo -->
     <div id="ammo-display">
       <div id="ammo-current">40</div>
       <div id="ammo-max">/ 40</div>
     </div>
 
-    <!-- Minimap -->
     <div id="minimap">
       <canvas id="minimap-canvas" width="180" height="180"></canvas>
     </div>
 
-    <!-- Kill Feed -->
     <div id="kill-feed"></div>
-
-    <!-- Player Count -->
     <div id="player-count">PLAYERS: 1</div>
-
-    <!-- Boss Alert -->
     <div id="boss-alert"></div>
   </div>
 
-  <!-- Shop Panel -->
+  <!-- Shop Panel (items generated dynamically by HUD.js) -->
   <div id="shop-panel">
-    <h3>SHOP <span id="shop-close">[X]</span></h3>
-    <div class="shop-item" data-id="Minigun">
-      <span class="shop-name">미니건</span>
-      <span class="shop-desc">고속 연사 기관총</span>
-      <span class="shop-price">$1500</span>
+    <div class="shop-header">
+      <h3>SHOP</h3>
+      <span id="shop-coins">$0</span>
+      <span id="shop-close">X</span>
     </div>
-    <div class="shop-item" data-id="Revolver">
-      <span class="shop-name">리볼버</span>
-      <span class="shop-desc">강력한 보조무기</span>
-      <span class="shop-price">$550</span>
-    </div>
-    <div class="shop-item" data-id="Glock">
-      <span class="shop-name">글록</span>
-      <span class="shop-desc">빠른 연사 보조무기</span>
-      <span class="shop-price">$350</span>
-    </div>
-    <div class="shop-item" data-id="Shotgun">
-      <span class="shop-name">샷건</span>
-      <span class="shop-desc">근거리 강력 산탄</span>
-      <span class="shop-price">$300</span>
-    </div>
-    <div class="shop-item" data-id="Sniper">
-      <span class="shop-name">스나이퍼</span>
-      <span class="shop-desc">원거리 고데미지</span>
-      <span class="shop-price">$500</span>
-    </div>
-    <div class="shop-item" data-id="Grenade">
-      <span class="shop-name">수류탄</span>
-      <span class="shop-desc">범위 큰 데미지</span>
-      <span class="shop-price">$200</span>
-    </div>
-    <div class="shop-item" data-id="HealthPack">
-      <span class="shop-name">회복팩</span>
-      <span class="shop-desc">HP 50 회복</span>
-      <span class="shop-price">$50</span>
-    </div>
+    <div id="shop-items"></div>
   </div>
 
   <!-- Pause overlay -->

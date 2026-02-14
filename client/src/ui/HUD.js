@@ -1,5 +1,6 @@
 // client/src/ui/HUD.js
 import { SHOP_ITEMS, WEAPONS } from '../../../shared/constants.js';
+import { getWeaponIcon } from './WeaponIcons.js';
 
 export class HUD {
   constructor() {
@@ -12,12 +13,35 @@ export class HUD {
     this.coinDisplay = document.getElementById('coin-display');
     this.weaponName = document.getElementById('weapon-name');
     this.weaponSlots = document.getElementById('weapon-slots');
+    this.weaponIconEl = document.getElementById('weapon-icon');
     this.killCountEl = document.getElementById('kill-count');
     this.bossAlertEl = document.getElementById('boss-alert');
+    this.shopCoinsEl = document.getElementById('shop-coins');
     this.shopOpen = false;
     this.game = null;
 
+    this.buildShopItems();
     this.setupShop();
+  }
+
+  buildShopItems() {
+    const container = document.getElementById('shop-items');
+    if (!container) return;
+    container.innerHTML = '';
+    for (const item of SHOP_ITEMS) {
+      const div = document.createElement('div');
+      div.className = 'shop-item';
+      div.dataset.id = item.id;
+      div.innerHTML = `
+        <div class="shop-icon">${getWeaponIcon(item.id)}</div>
+        <div class="shop-info">
+          <div class="shop-name">${item.name}</div>
+          <div class="shop-desc">${item.desc}</div>
+        </div>
+        <span class="shop-price">$${item.price}</span>
+      `;
+      container.appendChild(div);
+    }
   }
 
   setupShop() {
@@ -36,28 +60,36 @@ export class HUD {
     const shopClose = document.getElementById('shop-close');
     if (shopClose) {
       shopClose.addEventListener('click', () => this.toggleShop());
+      shopClose.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        this.toggleShop();
+      }, { passive: false });
     }
 
-    // Shop item buttons
-    const shopItems = document.querySelectorAll('.shop-item');
-    shopItems.forEach(item => {
-      item.addEventListener('click', () => {
-        this.buyItem(item.dataset.id);
+    // Delegate click/touch on shop items
+    const container = document.getElementById('shop-items');
+    if (container) {
+      container.addEventListener('click', (e) => {
+        const item = e.target.closest('.shop-item');
+        if (item) this.buyItem(item.dataset.id);
       });
-      item.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        this.buyItem(item.dataset.id);
+      container.addEventListener('touchstart', (e) => {
+        const item = e.target.closest('.shop-item');
+        if (item) {
+          e.preventDefault();
+          this.buyItem(item.dataset.id);
+        }
       }, { passive: false });
-    });
+    }
   }
 
   toggleShop() {
     this.shopOpen = !this.shopOpen;
     const shop = document.getElementById('shop-panel');
-    if (shop) {
-      shop.classList.toggle('active', this.shopOpen);
-    }
+    if (shop) shop.classList.toggle('active', this.shopOpen);
+
     if (this.shopOpen) {
+      this.updateShopAffordability();
       if (document.pointerLockElement) document.exitPointerLock();
     } else {
       const canvas = document.querySelector('canvas');
@@ -65,11 +97,20 @@ export class HUD {
     }
   }
 
+  updateShopAffordability() {
+    if (!this.game) return;
+    const coins = this.game.player.coins;
+    if (this.shopCoinsEl) this.shopCoinsEl.textContent = `$${coins}`;
+    document.querySelectorAll('.shop-item').forEach(el => {
+      const item = SHOP_ITEMS.find(i => i.id === el.dataset.id);
+      if (item) el.classList.toggle('too-expensive', coins < item.price);
+    });
+  }
+
   buyItem(itemId) {
     if (!this.game) return;
     const shopItem = SHOP_ITEMS.find(i => i.id === itemId);
     if (!shopItem) return;
-
     if (this.game.player.coins < shopItem.price) return;
 
     this.game.player.coins -= shopItem.price;
@@ -80,11 +121,8 @@ export class HUD {
         this.game.player.maxHealth
       );
     } else if (itemId === 'Grenade') {
-      // Refill grenades
-      if (this.game.weapons.currentWeaponId === 'Grenade') {
-        this.game.weapons.currentAmmo = 1;
-      }
       this.game.weapons.slots[3] = 'Grenade';
+      this.game.weapons.switchSlot(3);
     } else {
       const weaponConfig = WEAPONS[itemId];
       if (weaponConfig) {
@@ -93,13 +131,20 @@ export class HUD {
       }
     }
 
-    this.toggleShop();
+    this.updateShopAffordability();
+    this.showBuyFeedback(shopItem.name);
+  }
+
+  showBuyFeedback(name) {
+    const popup = document.createElement('div');
+    popup.className = 'buy-popup';
+    popup.textContent = `${name} purchased!`;
+    document.getElementById('hud').appendChild(popup);
+    setTimeout(() => popup.remove(), 1500);
   }
 
   updateKillCount(count) {
-    if (this.killCountEl) {
-      this.killCountEl.textContent = `KILLS: ${count}`;
-    }
+    if (this.killCountEl) this.killCountEl.textContent = `KILLS: ${count}`;
   }
 
   showBossAlert(text) {
@@ -109,7 +154,7 @@ export class HUD {
     setTimeout(() => this.bossAlertEl.classList.remove('show'), 4000);
   }
 
-  update({ health, maxHealth, ammo, maxAmmo, playerCount, coins, weaponName, currentSlot, isReloading }) {
+  update({ health, maxHealth, ammo, maxAmmo, playerCount, coins, weaponName, currentSlot, isReloading, weaponId }) {
     const pct = (health / maxHealth) * 100;
     this.healthFill.style.width = pct + '%';
     if (pct > 50) {
@@ -130,16 +175,24 @@ export class HUD {
     this.ammoCurrent.style.color = (ammo <= 5 && ammo !== Infinity) ? '#ff5252' : '#fff';
 
     this.playerCount.textContent = `PLAYERS: ${playerCount}`;
-
     if (this.coinDisplay) this.coinDisplay.textContent = `${coins}`;
     if (this.weaponName) this.weaponName.textContent = weaponName;
 
+    // Weapon icon
+    if (this.weaponIconEl && weaponId) {
+      this.weaponIconEl.innerHTML = getWeaponIcon(weaponId);
+    }
+
+    // Weapon slots highlight
     if (this.weaponSlots) {
       const slots = this.weaponSlots.children;
       for (let i = 0; i < slots.length; i++) {
         slots[i].classList.toggle('active', i === currentSlot);
       }
     }
+
+    // Update shop coins if open
+    if (this.shopOpen) this.updateShopAffordability();
   }
 
   showHitMarker(isHeadshot = false) {

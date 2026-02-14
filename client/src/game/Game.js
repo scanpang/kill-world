@@ -118,6 +118,7 @@ export class Game {
       weaponName: this.weapons.config.name,
       currentSlot: this.weapons.currentSlot,
       isReloading: this.weapons.isReloading,
+      weaponId: this.weapons.currentWeaponId,
     });
 
     this.network.sendPosition(

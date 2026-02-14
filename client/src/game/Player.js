@@ -63,7 +63,7 @@ export class Player {
   update(delta) {
     if (this.isDead) return;
 
-    const speed = this.isSprinting ? PLAYER.SPRINT_SPEED : PLAYER.SPEED;
+    let speed = this.isSprinting ? PLAYER.SPRINT_SPEED : PLAYER.SPEED;
 
     const forward = new THREE.Vector3(
       -Math.sin(this.rotation.y), 0, -Math.cos(this.rotation.y)
@@ -80,10 +80,12 @@ export class Player {
     if (this.keys['KeyA']) moveDir.sub(right);
     if (this.keys['KeyD']) moveDir.add(right);
 
-    // Mobile joystick input (additive, analog)
-    if (Math.abs(this.mobileMove.x) > 0.1 || Math.abs(this.mobileMove.y) > 0.1) {
+    // Mobile joystick input - speed scales with distance
+    const mobileLen = Math.sqrt(this.mobileMove.x ** 2 + this.mobileMove.y ** 2);
+    if (mobileLen > 0.1) {
       moveDir.addScaledVector(right, this.mobileMove.x);
       moveDir.addScaledVector(forward, -this.mobileMove.y);
+      speed = PLAYER.SPEED * Math.min(mobileLen, 1.0);
     }
 
     if (moveDir.length() > 0) moveDir.normalize();

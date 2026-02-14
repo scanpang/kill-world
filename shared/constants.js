@@ -175,10 +175,10 @@ export const NPC = {
 };
 
 export const NPC_TYPES = {
-  normal:  { health: 80,   speed: 4,   scale: 1,    bodyColor: 0x8b0000, coinDrop: 25,  dmg: 10, name: 'Zombie' },
-  tank:    { health: 250,  speed: 2.5, scale: 1.35, bodyColor: 0x2d1b69, coinDrop: 60,  dmg: 20, name: 'Tank' },
-  fast:    { health: 50,   speed: 9,   scale: 0.85, bodyColor: 0xcc4400, coinDrop: 40,  dmg: 8,  name: 'Runner' },
-  boss:    { health: 2000, speed: 5.5, scale: 2.2,  bodyColor: 0x4a0080, coinDrop: 500, dmg: 30, name: 'BOSS' },
+  normal:  { health: 80,   speed: 9.8,  scale: 1,    bodyColor: 0x8b0000, coinDrop: 25,  dmg: 10, name: 'Zombie' },
+  tank:    { health: 250,  speed: 11.2, scale: 1.35, bodyColor: 0x2d1b69, coinDrop: 60,  dmg: 20, name: 'Tank' },
+  fast:    { health: 50,   speed: 13.3, scale: 0.85, bodyColor: 0xcc4400, coinDrop: 40,  dmg: 8,  name: 'Runner' },
+  boss:    { health: 2000, speed: 14.7, scale: 2.2,  bodyColor: 0x4a0080, coinDrop: 500, dmg: 30, name: 'BOSS' },
 };
 
 export const EVENTS = {

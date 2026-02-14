@@ -70,9 +70,6 @@ export class MobileControls {
         this.player.mobileMove.x = dx / maxDist;
         this.player.mobileMove.y = dy / maxDist;
 
-        // Sprint when pushed to edge
-        this.player.isSprinting = (dist / maxDist) > 0.85;
-
         stick.style.left = (this.joystickOrigin.x + dx - 20) + 'px';
         stick.style.top = (this.joystickOrigin.y + dy - 20) + 'px';
       }
