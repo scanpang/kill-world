@@ -26,22 +26,19 @@ export class Player {
   }
 
   init() {
-    // Create physics body
     this.body = this.physics.createPlayerBody({ x: 0, y: 5, z: 0 });
-
-    // Camera initial position
     this.camera.position.set(0, PLAYER.HEIGHT, 0);
   }
 
   setupInput() {
     document.addEventListener('keydown', (e) => {
       this.keys[e.code] = true;
-      if (e.code === 'KeyR') this.isSprinting = true;
+      if (e.code === 'ShiftLeft') this.isSprinting = true;
     });
 
     document.addEventListener('keyup', (e) => {
       this.keys[e.code] = false;
-      if (e.code === 'KeyR') this.isSprinting = false;
+      if (e.code === 'ShiftLeft') this.isSprinting = false;
     });
 
     document.addEventListener('mousemove', (e) => {
@@ -58,7 +55,6 @@ export class Player {
 
     const speed = this.isSprinting ? PLAYER.SPRINT_SPEED : PLAYER.SPEED;
 
-    // Movement direction
     const forward = new THREE.Vector3(
       -Math.sin(this.rotation.y),
       0,
@@ -78,26 +74,21 @@ export class Player {
 
     if (moveDir.length() > 0) moveDir.normalize();
 
-    // Apply to physics body
     this.body.velocity.x = moveDir.x * speed;
     this.body.velocity.z = moveDir.z * speed;
 
-    // Ground check
     this.isGrounded = Math.abs(this.body.velocity.y) < 0.5 && this.body.position.y < PLAYER.HEIGHT + 0.5;
 
-    // Jump
     if (this.keys['Space'] && this.isGrounded) {
       this.body.velocity.y = PLAYER.JUMP_FORCE;
     }
 
-    // Sync camera to physics body
     this.camera.position.set(
       this.body.position.x,
       this.body.position.y + PLAYER.HEIGHT / 2,
       this.body.position.z
     );
 
-    // Apply rotation
     this.camera.rotation.order = 'YXZ';
     this.camera.rotation.y = this.rotation.y;
     this.camera.rotation.x = this.rotation.x;

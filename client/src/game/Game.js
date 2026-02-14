@@ -26,6 +26,14 @@ export class Game {
     this.minimap = new Minimap();
     this.hud = new HUD();
 
+    // Connect systems
+    this.weapons.game = this;
+
+    // NPC attack → player damage
+    window.__onNPCAttack = (damage) => {
+      this.player.takeDamage(damage);
+    };
+
     // Remote players
     this.remotePlayers = new Map();
 

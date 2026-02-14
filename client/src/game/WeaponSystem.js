@@ -8,6 +8,7 @@ export class WeaponSystem {
     this.player = player;
     this.camera = sceneManager.camera;
     this.raycaster = new THREE.Raycaster();
+    this.game = null; // set by Game after construction
 
     // Current weapon
     this.currentWeaponId = 'AssaultRifle';
@@ -21,7 +22,7 @@ export class WeaponSystem {
     // Gun model (attached to camera)
     this.gunModel = this.createGunModel();
     this.camera.add(this.gunModel);
-    this.scene.add(this.camera); // Camera must be in scene for children to render
+    this.scene.add(this.camera);
 
     // Bullet tracers
     this.tracers = [];
@@ -33,28 +34,24 @@ export class WeaponSystem {
     const gun = new THREE.Group();
     const mat = (color) => new THREE.MeshStandardMaterial({ color });
 
-    // Barrel
     const barrel = new THREE.Mesh(
       new THREE.BoxGeometry(0.06, 0.06, 0.55),
       mat(0x222222)
     );
     barrel.position.z = -0.35;
 
-    // Body
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(0.1, 0.14, 0.3),
       mat(0x444444)
     );
     body.position.set(0, -0.04, -0.1);
 
-    // Stock
     const stock = new THREE.Mesh(
       new THREE.BoxGeometry(0.08, 0.1, 0.15),
       mat(0x5c3a1e)
     );
     stock.position.set(0, -0.02, 0.12);
 
-    // Magazine
     const mag = new THREE.Mesh(
       new THREE.BoxGeometry(0.06, 0.12, 0.04),
       mat(0x333333)
@@ -69,7 +66,7 @@ export class WeaponSystem {
 
   setupInput() {
     document.addEventListener('mousedown', (e) => {
-      if (e.button === 0) {
+      if (e.button === 0 && document.pointerLockElement) {
         this.isShooting = true;
         if (!this.config.auto) {
           this.shoot();
@@ -85,7 +82,6 @@ export class WeaponSystem {
 
     document.addEventListener('keydown', (e) => {
       if (e.code === 'KeyR') this.reload();
-      // Weapon switch
       if (e.code === 'Digit1') this.switchWeapon('AssaultRifle');
       if (e.code === 'Digit2') this.switchWeapon('Shotgun');
       if (e.code === 'Digit3') this.switchWeapon('Sniper');
@@ -94,13 +90,13 @@ export class WeaponSystem {
 
   shoot() {
     if (this.isReloading || this.currentAmmo <= 0 || this.player.isDead) return;
+    if (!document.pointerLockElement) return;
 
     const now = performance.now();
     if (now - this.lastShotTime < this.config.fireRate) return;
     this.lastShotTime = now;
     this.currentAmmo--;
 
-    // Auto reload when empty
     if (this.currentAmmo <= 0) {
       this.reload();
     }
@@ -110,7 +106,6 @@ export class WeaponSystem {
       this.fireRay();
     }
 
-    // Recoil animation
     this.applyRecoil();
   }
 
@@ -122,7 +117,6 @@ export class WeaponSystem {
       -1
     ).normalize();
 
-    // Transform direction to world space
     direction.applyQuaternion(this.camera.quaternion);
 
     this.raycaster.set(this.camera.position.clone(), direction);
@@ -137,8 +131,43 @@ export class WeaponSystem {
       this.createTracer(this.camera.position, hit.point);
       this.createImpact(hit.point, hit.face?.normal);
 
-      // Check if hit NPC or player
-      // (handled via network/game logic)
+      // Check NPC hit
+      if (this.game) {
+        this.checkNPCHit(hit);
+      }
+    }
+  }
+
+  checkNPCHit(hit) {
+    // Walk up the hierarchy to find the NPC group
+    let obj = hit.object;
+    while (obj.parent && obj.parent !== this.scene.scene) {
+      obj = obj.parent;
+    }
+
+    // Find which NPC this group belongs to
+    const npcManager = this.game.npcManager;
+    for (let i = 0; i < npcManager.npcs.length; i++) {
+      const npc = npcManager.npcs[i];
+      if (npc.alive && npc.mesh === obj) {
+        // Headshot check: hit point Y relative to NPC position
+        const localHitY = hit.point.y - npc.mesh.position.y;
+        const isHeadshot = localHitY > 2.7;
+
+        let damage = this.config.damage;
+        if (isHeadshot) {
+          damage = Math.floor(damage * this.config.headshotMul);
+        }
+
+        npcManager.damageNPC(i, damage);
+        this.game.hud.showHitMarker(isHeadshot);
+
+        // Kill feed on death
+        if (npc.health <= 0) {
+          this.game.hud.addKillFeedEntry('You', `NPC_${i + 1}`);
+        }
+        break;
+      }
     }
   }
 
@@ -157,7 +186,6 @@ export class WeaponSystem {
   }
 
   createImpact(position, normal) {
-    // Small flash at impact point
     const geo = new THREE.SphereGeometry(0.1, 6, 6);
     const mat = new THREE.MeshBasicMaterial({
       color: 0xffaa00,
@@ -172,7 +200,6 @@ export class WeaponSystem {
   }
 
   applyRecoil() {
-    // Quick kick-back animation
     const original = this.gunModel.position.z;
     this.gunModel.position.z += 0.05;
     this.gunModel.rotation.x -= 0.03;
@@ -203,12 +230,10 @@ export class WeaponSystem {
   }
 
   update(delta) {
-    // Auto fire
-    if (this.isShooting && this.config.auto) {
+    if (this.isShooting && this.config.auto && document.pointerLockElement) {
       this.shoot();
     }
 
-    // Update tracers
     for (let i = this.tracers.length - 1; i >= 0; i--) {
       this.tracers[i].life -= delta;
       if (this.tracers[i].life <= 0) {
