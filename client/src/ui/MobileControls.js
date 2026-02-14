@@ -90,6 +90,12 @@ export class MobileControls {
         this.joystickTouchId = null;
         this.moveX = 0;
         this.moveY = 0;
+        // Clear movement keys
+        this.player.keys['KeyW'] = false;
+        this.player.keys['KeyS'] = false;
+        this.player.keys['KeyA'] = false;
+        this.player.keys['KeyD'] = false;
+        this.player.isSprinting = false;
         base.style.opacity = '0.3';
         stick.style.opacity = '0.3';
         stick.style.left = base.style.left ? (parseInt(base.style.left) + 40) + 'px' : '60px';
@@ -119,8 +125,8 @@ export class MobileControls {
         const dx = touch.clientX - this.lastLookPos.x;
         const dy = touch.clientY - this.lastLookPos.y;
 
-        this.player.rotation.y -= dx * 0.004;
-        this.player.rotation.x -= dy * 0.004;
+        this.player.rotation.y -= dx * 0.01;
+        this.player.rotation.x -= dy * 0.01;
         this.player.rotation.x = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, this.player.rotation.x));
 
         this.lastLookPos = { x: touch.clientX, y: touch.clientY };
