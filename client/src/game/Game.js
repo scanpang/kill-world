@@ -34,6 +34,11 @@ export class Game {
     // Connect systems
     this.weapons.game = this;
     this.hud.game = this;
+    this.player.map = this.map;
+    this.npcManager.map = this.map;
+
+    // Kill tracking
+    this.killCount = 0;
 
     // NPC attack → player damage
     window.__onNPCAttack = (damage) => {
@@ -58,9 +63,28 @@ export class Game {
   }
 
   onNPCKill(npcIndex) {
-    this.player.addCoins(NPC_CONST.COIN_DROP);
-    this.hud.showCoinPopup(NPC_CONST.COIN_DROP);
-    this.hud.addKillFeedEntry('You', `Zombie_${npcIndex + 1}`);
+    const npc = this.npcManager.npcs[npcIndex];
+    const coinDrop = npc.coinDrop || NPC_CONST.COIN_DROP;
+    this.player.addCoins(coinDrop);
+    this.hud.showCoinPopup(coinDrop);
+    this.killCount++;
+    this.hud.updateKillCount(this.killCount);
+
+    if (npc.isBoss) {
+      // Boss killed - award unique weapon
+      this.weapons.slots[3] = 'BossGun';
+      this.weapons.switchSlot(3);
+      this.hud.showBossAlert('BOSS DEFEATED! PLASMA GUN ACQUIRED!');
+      this.hud.addKillFeedEntry('You', 'BOSS');
+    } else {
+      this.hud.addKillFeedEntry('You', npc.typeName || 'Zombie');
+    }
+
+    // Boss spawn every 100 kills
+    if (this.killCount % 100 === 0 && !this.npcManager.bossAlive) {
+      this.npcManager.spawnBoss();
+      this.hud.showBossAlert('BOSS ZOMBIE APPEARED!');
+    }
   }
 
   pause() {}

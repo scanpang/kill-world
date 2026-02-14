@@ -1,39 +1,53 @@
 // client/src/game/NPCManager.js
 import * as THREE from 'three';
-import { NPC } from '../../../shared/constants.js';
+import { NPC, NPC_TYPES } from '../../../shared/constants.js';
 
 export class NPCManager {
   constructor(sceneManager, physics) {
     this.scene = sceneManager;
     this.physics = physics;
     this.npcs = [];
+    this.map = null;
+    this.bossAlive = false;
   }
 
   spawnInitialNPCs() {
     const spawnPoints = [
-      { x: -30, z: -30 },
-      { x: 30, z: -30 },
-      { x: -30, z: 30 },
-      { x: 30, z: 30 },
-      { x: 0, z: -40 },
-      { x: -40, z: 0 },
-      { x: 40, z: 0 },
-      { x: 0, z: 40 },
+      { x: -30, z: -30 }, { x: 30, z: -30 },
+      { x: -30, z: 30 },  { x: 30, z: 30 },
+      { x: 0, z: -40 },   { x: -40, z: 0 },
+      { x: 40, z: 0 },    { x: 0, z: 40 },
+      { x: -55, z: -20 }, { x: 55, z: 20 },
     ];
 
     for (const sp of spawnPoints) {
-      this.spawnNPC(sp.x, sp.z);
+      this.spawnNPC(sp.x, sp.z, this.randomType());
     }
   }
 
-  spawnNPC(x, z) {
+  randomType() {
+    const r = Math.random();
+    if (r < 0.15) return 'tank';
+    if (r < 0.40) return 'fast';
+    return 'normal';
+  }
+
+  spawnNPC(x, z, type = 'normal') {
+    const cfg = NPC_TYPES[type];
     const npc = {
-      mesh: this.createNPCMesh(),
+      mesh: this.createNPCMesh(cfg),
       alive: true,
-      health: NPC.HEALTH,
+      health: cfg.health,
+      maxHealth: cfg.health,
+      speed: cfg.speed,
+      coinDrop: cfg.coinDrop,
+      damage: cfg.dmg,
+      typeName: cfg.name,
+      type: type,
+      isBoss: type === 'boss',
       spawnPos: { x, z },
       patrolTarget: null,
-      state: 'patrol', // 'patrol' | 'chase' | 'attack'
+      state: 'patrol',
       stateTimer: 0,
       attackCooldown: 0,
     };
@@ -41,73 +55,111 @@ export class NPCManager {
     npc.mesh.position.set(x, 0, z);
     this.scene.add(npc.mesh);
     this.npcs.push(npc);
+    return npc;
   }
 
-  createNPCMesh() {
+  spawnBoss() {
+    if (this.bossAlive) return;
+    this.bossAlive = true;
+    const angle = Math.random() * Math.PI * 2;
+    const x = Math.cos(angle) * 40;
+    const z = Math.sin(angle) * 40;
+    this.spawnNPC(x, z, 'boss');
+  }
+
+  createNPCMesh(cfg) {
     const group = new THREE.Group();
+    const s = cfg.scale;
     const mat = (color) => new THREE.MeshStandardMaterial({ color });
 
-    // Head (red tint for enemy)
+    // Head
     const head = new THREE.Mesh(
-      new THREE.BoxGeometry(1.0, 1.0, 1.0),
+      new THREE.BoxGeometry(1.0 * s, 1.0 * s, 1.0 * s),
       mat(0xcc9966)
     );
-    head.position.y = 3.2;
+    head.position.y = 3.2 * s;
     head.castShadow = true;
 
-    // Angry eyes
-    const eyeMat = mat(0xff0000);
-    const eyeGeo = new THREE.BoxGeometry(0.18, 0.12, 0.05);
+    // Eyes (boss = purple glow)
+    const eyeColor = cfg === NPC_TYPES.boss ? 0xff00ff : 0xff0000;
+    const eyeMat = new THREE.MeshStandardMaterial({
+      color: eyeColor, emissive: eyeColor, emissiveIntensity: 0.8,
+    });
+    const eyeGeo = new THREE.BoxGeometry(0.18 * s, 0.12 * s, 0.05);
     const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
-    leftEye.position.set(-0.22, 3.3, 0.51);
+    leftEye.position.set(-0.22 * s, 3.3 * s, 0.51 * s);
     const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
-    rightEye.position.set(0.22, 3.3, 0.51);
+    rightEye.position.set(0.22 * s, 3.3 * s, 0.51 * s);
 
-    // Body (dark red)
+    // Body
     const body = new THREE.Mesh(
-      new THREE.BoxGeometry(1.2, 1.4, 0.7),
-      mat(0x8b0000)
+      new THREE.BoxGeometry(1.2 * s, 1.4 * s, 0.7 * s),
+      mat(cfg.bodyColor)
     );
-    body.position.y = 2.0;
+    body.position.y = 2.0 * s;
     body.castShadow = true;
 
     // Arms
-    const armGeo = new THREE.BoxGeometry(0.4, 1.2, 0.4);
-    const armMat = mat(0x8b0000);
+    const armGeo = new THREE.BoxGeometry(0.4 * s, 1.2 * s, 0.4 * s);
+    const armMat = mat(cfg.bodyColor);
     const leftArm = new THREE.Mesh(armGeo, armMat);
-    leftArm.position.set(-0.8, 2.0, 0);
+    leftArm.position.set(-0.8 * s, 2.0 * s, 0);
     const rightArm = new THREE.Mesh(armGeo, armMat);
-    rightArm.position.set(0.8, 2.0, 0);
+    rightArm.position.set(0.8 * s, 2.0 * s, 0);
 
     // Legs
-    const legGeo = new THREE.BoxGeometry(0.5, 1.2, 0.5);
+    const legGeo = new THREE.BoxGeometry(0.5 * s, 1.2 * s, 0.5 * s);
     const legMat = mat(0x333333);
     const leftLeg = new THREE.Mesh(legGeo, legMat);
-    leftLeg.position.set(-0.3, 0.6, 0);
+    leftLeg.position.set(-0.3 * s, 0.6 * s, 0);
     const rightLeg = new THREE.Mesh(legGeo, legMat);
-    rightLeg.position.set(0.3, 0.6, 0);
+    rightLeg.position.set(0.3 * s, 0.6 * s, 0);
 
-    // Health bar above head
+    // Health bar
     const hpBg = new THREE.Mesh(
-      new THREE.BoxGeometry(1.2, 0.12, 0.05),
+      new THREE.BoxGeometry(1.2 * s, 0.12, 0.05),
       mat(0x333333)
     );
-    hpBg.position.set(0, 4.0, 0);
-
+    hpBg.position.set(0, (3.8 + 0.6) * s, 0);
+    const hpColor = cfg === NPC_TYPES.boss ? 0xff00ff : 0xff0000;
     const hpFill = new THREE.Mesh(
-      new THREE.BoxGeometry(1.18, 0.1, 0.06),
-      mat(0xff0000)
+      new THREE.BoxGeometry(1.18 * s, 0.1, 0.06),
+      mat(hpColor)
     );
-    hpFill.position.set(0, 4.0, 0.01);
+    hpFill.position.set(0, (3.8 + 0.6) * s, 0.01);
     hpFill.name = 'hpFill';
 
     group.add(head, leftEye, rightEye, body, leftArm, rightArm, leftLeg, rightLeg, hpBg, hpFill);
 
-    // Store arm refs for animation
+    // Boss horns
+    if (cfg === NPC_TYPES.boss) {
+      const hornMat = mat(0xffcc00);
+      const hornGeo = new THREE.ConeGeometry(0.2 * s, 0.8 * s, 4);
+      const lHorn = new THREE.Mesh(hornGeo, hornMat);
+      lHorn.position.set(-0.35 * s, 4.0 * s, 0);
+      lHorn.rotation.z = 0.3;
+      const rHorn = new THREE.Mesh(hornGeo, hornMat);
+      rHorn.position.set(0.35 * s, 4.0 * s, 0);
+      rHorn.rotation.z = -0.3;
+      group.add(lHorn, rHorn);
+    }
+
+    // Tank shield
+    if (cfg === NPC_TYPES.tank) {
+      const shieldGeo = new THREE.BoxGeometry(1.4 * s, 1.6 * s, 0.15 * s);
+      const shieldMat = new THREE.MeshStandardMaterial({
+        color: 0x4444aa, transparent: true, opacity: 0.4,
+      });
+      const shield = new THREE.Mesh(shieldGeo, shieldMat);
+      shield.position.set(0, 2.0 * s, 0.5 * s);
+      group.add(shield);
+    }
+
     group.userData.leftArm = leftArm;
     group.userData.rightArm = rightArm;
     group.userData.leftLeg = leftLeg;
     group.userData.rightLeg = rightLeg;
+    group.userData.hpBarWidth = 1.18 * s;
 
     return group;
   }
@@ -121,122 +173,108 @@ export class NPCManager {
         new THREE.Vector3(playerPos.x, npcPos.y, playerPos.z)
       );
 
-      // State machine
-      if (distToPlayer < NPC.ATTACK_RANGE) {
+      const detectRange = npc.isBoss ? 60 : NPC.DETECT_RANGE;
+      const attackRange = npc.isBoss ? 4 : NPC.ATTACK_RANGE;
+
+      if (distToPlayer < attackRange) {
         npc.state = 'attack';
-      } else if (distToPlayer < NPC.DETECT_RANGE) {
+      } else if (distToPlayer < detectRange) {
         npc.state = 'chase';
       } else {
         npc.state = 'patrol';
       }
 
       switch (npc.state) {
-        case 'patrol':
-          this.updatePatrol(npc, delta);
-          break;
-        case 'chase':
-          this.updateChase(npc, delta, playerPos);
-          break;
-        case 'attack':
-          this.updateAttack(npc, delta, playerPos);
-          break;
+        case 'patrol': this.updatePatrol(npc, delta); break;
+        case 'chase':  this.updateChase(npc, delta, playerPos); break;
+        case 'attack': this.updateAttack(npc, delta, playerPos); break;
       }
 
-      // Walk animation
       this.animateWalk(npc, delta);
 
-      // Make HP bar face camera
+      // HP bar
       const hpFill = npc.mesh.getObjectByName('hpFill');
       if (hpFill) {
-        const scale = npc.health / NPC.HEALTH;
+        const scale = npc.health / npc.maxHealth;
         hpFill.scale.x = Math.max(0, scale);
-        hpFill.position.x = -(1.18 * (1 - scale)) / 2;
+        const barW = npc.mesh.userData.hpBarWidth || 1.18;
+        hpFill.position.x = -(barW * (1 - scale)) / 2;
       }
     }
   }
 
   updatePatrol(npc, delta) {
     npc.stateTimer -= delta;
-
     if (!npc.patrolTarget || npc.stateTimer <= 0) {
-      // Pick new patrol point near spawn
       const angle = Math.random() * Math.PI * 2;
       const dist = Math.random() * NPC.PATROL_RADIUS;
       npc.patrolTarget = new THREE.Vector3(
-        npc.spawnPos.x + Math.cos(angle) * dist,
-        0,
+        npc.spawnPos.x + Math.cos(angle) * dist, 0,
         npc.spawnPos.z + Math.sin(angle) * dist
       );
       npc.stateTimer = 3 + Math.random() * 4;
     }
-
-    this.moveToward(npc, npc.patrolTarget, NPC.SPEED * 0.5, delta);
+    this.moveToward(npc, npc.patrolTarget, npc.speed * 0.5, delta);
   }
 
   updateChase(npc, delta, playerPos) {
     const target = new THREE.Vector3(playerPos.x, 0, playerPos.z);
-    this.moveToward(npc, target, NPC.SPEED, delta);
+    this.moveToward(npc, target, npc.speed, delta);
   }
 
   updateAttack(npc, delta, playerPos) {
-    // Face player
     const target = new THREE.Vector3(playerPos.x, 0, playerPos.z);
     this.lookAt(npc, target);
-
-    // Attack on cooldown
     npc.attackCooldown -= delta;
     if (npc.attackCooldown <= 0) {
-      npc.attackCooldown = 1.5;
-      // Damage is handled server-side in multiplayer
-      // For single player demo, emit event
+      npc.attackCooldown = npc.isBoss ? 0.8 : 1.5;
       if (typeof window.__onNPCAttack === 'function') {
-        window.__onNPCAttack(NPC.DAMAGE);
+        window.__onNPCAttack(npc.damage);
       }
     }
   }
 
   moveToward(npc, target, speed, delta) {
-    const dir = new THREE.Vector3()
-      .subVectors(target, npc.mesh.position)
-      .setY(0);
-
+    const dir = new THREE.Vector3().subVectors(target, npc.mesh.position).setY(0);
     if (dir.length() < 1) return;
     dir.normalize();
 
-    npc.mesh.position.x += dir.x * speed * delta;
-    npc.mesh.position.z += dir.z * speed * delta;
+    let nx = npc.mesh.position.x + dir.x * speed * delta;
+    let nz = npc.mesh.position.z + dir.z * speed * delta;
 
+    // Wall collision
+    if (this.map) {
+      const r = npc.isBoss ? 2.0 : 0.8;
+      const resolved = this.map.resolveCollision(nx, nz, r);
+      nx = resolved.x;
+      nz = resolved.z;
+    }
+
+    npc.mesh.position.x = nx;
+    npc.mesh.position.z = nz;
     this.lookAt(npc, target);
   }
 
   lookAt(npc, target) {
-    const dir = new THREE.Vector3()
-      .subVectors(target, npc.mesh.position)
-      .setY(0);
+    const dir = new THREE.Vector3().subVectors(target, npc.mesh.position).setY(0);
     if (dir.length() > 0.1) {
-      const angle = Math.atan2(dir.x, dir.z);
-      npc.mesh.rotation.y = angle;
+      npc.mesh.rotation.y = Math.atan2(dir.x, dir.z);
     }
   }
 
   animateWalk(npc, delta) {
     const { leftArm, rightArm, leftLeg, rightLeg } = npc.mesh.userData;
     if (!leftArm) return;
-
     const isMoving = npc.state === 'patrol' || npc.state === 'chase';
-    const speed = npc.state === 'chase' ? 8 : 4;
-
+    const animSpeed = npc.state === 'chase' ? 8 : 4;
     if (isMoving) {
-      const t = performance.now() * 0.001 * speed;
+      const t = performance.now() * 0.001 * animSpeed;
       leftArm.rotation.x = Math.sin(t) * 0.5;
       rightArm.rotation.x = -Math.sin(t) * 0.5;
       leftLeg.rotation.x = -Math.sin(t) * 0.5;
       rightLeg.rotation.x = Math.sin(t) * 0.5;
     } else {
-      leftArm.rotation.x = 0;
-      rightArm.rotation.x = 0;
-      leftLeg.rotation.x = 0;
-      rightLeg.rotation.x = 0;
+      leftArm.rotation.x = rightArm.rotation.x = leftLeg.rotation.x = rightLeg.rotation.x = 0;
     }
   }
 
@@ -249,12 +287,33 @@ export class NPCManager {
       npc.alive = false;
       this.scene.remove(npc.mesh);
 
-      // Respawn after delay
+      if (npc.isBoss) {
+        this.bossAlive = false;
+        return; // Boss does not respawn
+      }
+
+      // Respawn as random type
       setTimeout(() => {
-        npc.health = NPC.HEALTH;
+        const newType = this.randomType();
+        const cfg = NPC_TYPES[newType];
+        npc.type = newType;
+        npc.typeName = cfg.name;
+        npc.health = cfg.health;
+        npc.maxHealth = cfg.health;
+        npc.speed = cfg.speed;
+        npc.coinDrop = cfg.coinDrop;
+        npc.damage = cfg.dmg;
+        npc.isBoss = false;
         npc.alive = true;
-        npc.mesh.position.set(npc.spawnPos.x, 0, npc.spawnPos.z);
         npc.state = 'patrol';
+
+        // Rebuild mesh
+        npc.mesh.traverse(child => {
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) child.material.dispose();
+        });
+        npc.mesh = this.createNPCMesh(cfg);
+        npc.mesh.position.set(npc.spawnPos.x, 0, npc.spawnPos.z);
         this.scene.add(npc.mesh);
       }, NPC.RESPAWN_TIME * 1000);
     }

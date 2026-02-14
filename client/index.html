@@ -29,11 +29,12 @@
     <span id="health-text">HP</span>
     <div id="health-bar"><div id="health-fill"></div></div>
 
-    <!-- Coins -->
+    <!-- Coins & Kill Count -->
     <div id="coin-container">
       <span id="coin-icon">$</span>
       <span id="coin-display">0</span>
     </div>
+    <div id="kill-count">KILLS: 0</div>
 
     <!-- Weapon Info -->
     <div id="weapon-info">
@@ -62,11 +63,29 @@
 
     <!-- Player Count -->
     <div id="player-count">PLAYERS: 1</div>
+
+    <!-- Boss Alert -->
+    <div id="boss-alert"></div>
   </div>
 
   <!-- Shop Panel -->
   <div id="shop-panel">
     <h3>SHOP <span id="shop-close">[X]</span></h3>
+    <div class="shop-item" data-id="Minigun">
+      <span class="shop-name">미니건</span>
+      <span class="shop-desc">고속 연사 기관총</span>
+      <span class="shop-price">$1500</span>
+    </div>
+    <div class="shop-item" data-id="Revolver">
+      <span class="shop-name">리볼버</span>
+      <span class="shop-desc">강력한 보조무기</span>
+      <span class="shop-price">$550</span>
+    </div>
+    <div class="shop-item" data-id="Glock">
+      <span class="shop-name">글록</span>
+      <span class="shop-desc">빠른 연사 보조무기</span>
+      <span class="shop-price">$350</span>
+    </div>
     <div class="shop-item" data-id="Shotgun">
       <span class="shop-name">샷건</span>
       <span class="shop-desc">근거리 강력 산탄</span>
@@ -78,9 +97,9 @@
       <span class="shop-price">$500</span>
     </div>
     <div class="shop-item" data-id="Grenade">
-      <span class="shop-name">수류탄 x3</span>
-      <span class="shop-desc">범위 폭발 데미지</span>
-      <span class="shop-price">$100</span>
+      <span class="shop-name">수류탄</span>
+      <span class="shop-desc">범위 큰 데미지</span>
+      <span class="shop-price">$200</span>
     </div>
     <div class="shop-item" data-id="HealthPack">
       <span class="shop-name">회복팩</span>
@@ -118,7 +137,6 @@
     <button id="btn-jump">JUMP</button>
     <button id="btn-reload">R</button>
     <button id="btn-shop">SHOP</button>
-    <!-- Weapon switch buttons -->
     <div id="weapon-switch">
       <button class="ws-btn active" data-slot="0">1</button>
       <button class="ws-btn" data-slot="1">2</button>

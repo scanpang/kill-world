@@ -12,6 +12,8 @@ export class HUD {
     this.coinDisplay = document.getElementById('coin-display');
     this.weaponName = document.getElementById('weapon-name');
     this.weaponSlots = document.getElementById('weapon-slots');
+    this.killCountEl = document.getElementById('kill-count');
+    this.bossAlertEl = document.getElementById('boss-alert');
     this.shopOpen = false;
     this.game = null;
 
@@ -40,9 +42,12 @@ export class HUD {
     const shopItems = document.querySelectorAll('.shop-item');
     shopItems.forEach(item => {
       item.addEventListener('click', () => {
-        const itemId = item.dataset.id;
-        this.buyItem(itemId);
+        this.buyItem(item.dataset.id);
       });
+      item.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        this.buyItem(item.dataset.id);
+      }, { passive: false });
     });
   }
 
@@ -52,7 +57,6 @@ export class HUD {
     if (shop) {
       shop.classList.toggle('active', this.shopOpen);
     }
-    // PC: release pointer lock when shop is open so user can click items
     if (this.shopOpen) {
       if (document.pointerLockElement) document.exitPointerLock();
     } else {
@@ -76,9 +80,12 @@ export class HUD {
         this.game.player.maxHealth
       );
     } else if (itemId === 'Grenade') {
-      this.game.weapons.currentAmmo = 3;
+      // Refill grenades
+      if (this.game.weapons.currentWeaponId === 'Grenade') {
+        this.game.weapons.currentAmmo = 1;
+      }
+      this.game.weapons.slots[3] = 'Grenade';
     } else {
-      // Replace slot 4 with purchased weapon, or add to available
       const weaponConfig = WEAPONS[itemId];
       if (weaponConfig) {
         this.game.weapons.slots[3] = itemId;
@@ -89,8 +96,20 @@ export class HUD {
     this.toggleShop();
   }
 
+  updateKillCount(count) {
+    if (this.killCountEl) {
+      this.killCountEl.textContent = `KILLS: ${count}`;
+    }
+  }
+
+  showBossAlert(text) {
+    if (!this.bossAlertEl) return;
+    this.bossAlertEl.textContent = text;
+    this.bossAlertEl.classList.add('show');
+    setTimeout(() => this.bossAlertEl.classList.remove('show'), 4000);
+  }
+
   update({ health, maxHealth, ammo, maxAmmo, playerCount, coins, weaponName, currentSlot, isReloading }) {
-    // Health bar
     const pct = (health / maxHealth) * 100;
     this.healthFill.style.width = pct + '%';
     if (pct > 50) {
@@ -101,7 +120,6 @@ export class HUD {
       this.healthFill.style.background = 'linear-gradient(90deg, #d32f2f, #ff5252)';
     }
 
-    // Ammo
     if (ammo === Infinity) {
       this.ammoCurrent.textContent = '--';
       this.ammoMax.textContent = '';
@@ -109,27 +127,13 @@ export class HUD {
       this.ammoCurrent.textContent = isReloading ? '...' : ammo;
       this.ammoMax.textContent = `/ ${maxAmmo}`;
     }
+    this.ammoCurrent.style.color = (ammo <= 5 && ammo !== Infinity) ? '#ff5252' : '#fff';
 
-    if (ammo <= 5 && ammo !== Infinity) {
-      this.ammoCurrent.style.color = '#ff5252';
-    } else {
-      this.ammoCurrent.style.color = '#fff';
-    }
-
-    // Player count
     this.playerCount.textContent = `PLAYERS: ${playerCount}`;
 
-    // Coins
-    if (this.coinDisplay) {
-      this.coinDisplay.textContent = `${coins}`;
-    }
+    if (this.coinDisplay) this.coinDisplay.textContent = `${coins}`;
+    if (this.weaponName) this.weaponName.textContent = weaponName;
 
-    // Weapon name
-    if (this.weaponName) {
-      this.weaponName.textContent = weaponName;
-    }
-
-    // Weapon slots highlight
     if (this.weaponSlots) {
       const slots = this.weaponSlots.children;
       for (let i = 0; i < slots.length; i++) {

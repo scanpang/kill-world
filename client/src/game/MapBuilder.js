@@ -7,6 +7,7 @@ export class MapBuilder {
     this.scene = sceneManager;
     this.physics = physics;
     this.objects = [];
+    this.collisionBoxes = [];
   }
 
   build() {
@@ -163,10 +164,47 @@ export class MapBuilder {
     );
 
     this.objects.push(mesh);
+
+    // Store AABB for collision
+    this.collisionBoxes.push({
+      minX: pos[0] - size[0] / 2,
+      maxX: pos[0] + size[0] / 2,
+      minZ: pos[2] - size[2] / 2,
+      maxZ: pos[2] + size[2] / 2,
+    });
+
     return mesh;
   }
 
-  // Returns all collidable meshes for raycasting
+  resolveCollision(x, z, radius) {
+    for (const box of this.collisionBoxes) {
+      const closestX = Math.max(box.minX, Math.min(x, box.maxX));
+      const closestZ = Math.max(box.minZ, Math.min(z, box.maxZ));
+      const dx = x - closestX;
+      const dz = z - closestZ;
+      const distSq = dx * dx + dz * dz;
+      if (distSq < radius * radius) {
+        if (distSq === 0) {
+          const ol = x - box.minX + radius;
+          const or2 = box.maxX - x + radius;
+          const ot = z - box.minZ + radius;
+          const ob = box.maxZ - z + radius;
+          const m = Math.min(ol, or2, ot, ob);
+          if (m === ol) x = box.minX - radius;
+          else if (m === or2) x = box.maxX + radius;
+          else if (m === ot) z = box.minZ - radius;
+          else z = box.maxZ + radius;
+        } else {
+          const dist = Math.sqrt(distSq);
+          const overlap = radius - dist;
+          x += (dx / dist) * overlap;
+          z += (dz / dist) * overlap;
+        }
+      }
+    }
+    return { x, z };
+  }
+
   getCollidables() {
     return this.objects;
   }

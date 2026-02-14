@@ -26,6 +26,9 @@ export class Player {
     // Coins
     this.coins = 0;
 
+    // Map reference for collision
+    this.map = null;
+
     this.setupInput();
   }
 
@@ -87,6 +90,13 @@ export class Player {
 
     this.position.x += moveDir.x * speed * delta;
     this.position.z += moveDir.z * speed * delta;
+
+    // Wall collision
+    if (this.map) {
+      const resolved = this.map.resolveCollision(this.position.x, this.position.z, PLAYER.RADIUS);
+      this.position.x = resolved.x;
+      this.position.z = resolved.z;
+    }
 
     // Gravity & jump
     this.isGrounded = this.position.y <= PLAYER.HEIGHT;

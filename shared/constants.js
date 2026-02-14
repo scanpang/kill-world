@@ -58,17 +58,56 @@ export const WEAPONS = {
   },
   Grenade: {
     name: '수류탄',
-    damage: 120,
+    damage: 200,
     headshotMul: 1.0,
     fireRate: 1500,
-    maxAmmo: 3,
+    maxAmmo: 1,
     reloadTime: 0,
     spread: 0,
     range: 30,
     auto: false,
-    price: 100,
+    price: 200,
     type: 'grenade',
-    blastRadius: 8,
+    blastRadius: 12,
+  },
+  Minigun: {
+    name: '미니건',
+    damage: 20,
+    headshotMul: 1.5,
+    fireRate: 50,
+    maxAmmo: 200,
+    reloadTime: 4000,
+    spread: 0.05,
+    range: 150,
+    auto: true,
+    price: 1500,
+    type: 'gun',
+  },
+  Revolver: {
+    name: '리볼버',
+    damage: 45,
+    headshotMul: 3.0,
+    fireRate: 500,
+    maxAmmo: 6,
+    reloadTime: 2000,
+    spread: 0.005,
+    range: 180,
+    auto: false,
+    price: 550,
+    type: 'gun',
+  },
+  Glock: {
+    name: '글록',
+    damage: 20,
+    headshotMul: 2.0,
+    fireRate: 150,
+    maxAmmo: 17,
+    reloadTime: 1200,
+    spread: 0.015,
+    range: 120,
+    auto: true,
+    price: 350,
+    type: 'gun',
   },
   Shotgun: {
     name: '샷건',
@@ -97,14 +136,30 @@ export const WEAPONS = {
     price: 500,
     type: 'gun',
   },
+  BossGun: {
+    name: '플라즈마건',
+    damage: 35,
+    headshotMul: 2.5,
+    fireRate: 80,
+    maxAmmo: 100,
+    reloadTime: 3000,
+    spread: 0.02,
+    range: 250,
+    auto: true,
+    price: 0,
+    type: 'gun',
+  },
 };
 
 export const WEAPON_SLOTS = ['MachineGun', 'Pistol', 'Melee', 'Grenade'];
 
 export const SHOP_ITEMS = [
+  { id: 'Minigun', name: '미니건', price: 1500, desc: '고속 연사 기관총' },
+  { id: 'Revolver', name: '리볼버', price: 550, desc: '강력한 보조무기' },
+  { id: 'Glock', name: '글록', price: 350, desc: '빠른 연사 보조무기' },
   { id: 'Shotgun', name: '샷건', price: 300, desc: '근거리 강력 산탄' },
   { id: 'Sniper', name: '스나이퍼', price: 500, desc: '원거리 고데미지' },
-  { id: 'Grenade', name: '수류탄 x3', price: 100, desc: '범위 폭발 데미지' },
+  { id: 'Grenade', name: '수류탄', price: 200, desc: '범위 큰 데미지' },
   { id: 'HealthPack', name: '회복팩', price: 50, desc: 'HP 50 회복' },
 ];
 
@@ -117,6 +172,13 @@ export const NPC = {
   RESPAWN_TIME: 10,
   PATROL_RADIUS: 15,
   COIN_DROP: 25,
+};
+
+export const NPC_TYPES = {
+  normal:  { health: 80,   speed: 4,   scale: 1,    bodyColor: 0x8b0000, coinDrop: 25,  dmg: 10, name: 'Zombie' },
+  tank:    { health: 250,  speed: 2.5, scale: 1.35, bodyColor: 0x2d1b69, coinDrop: 60,  dmg: 20, name: 'Tank' },
+  fast:    { health: 50,   speed: 9,   scale: 0.85, bodyColor: 0xcc4400, coinDrop: 40,  dmg: 8,  name: 'Runner' },
+  boss:    { health: 2000, speed: 5.5, scale: 2.2,  bodyColor: 0x4a0080, coinDrop: 500, dmg: 30, name: 'BOSS' },
 };
 
 export const EVENTS = {
