@@ -15,7 +15,7 @@ export class NetworkManager {
     // Connect to game server
     const serverUrl = window.location.hostname === 'localhost'
       ? 'http://localhost:3000'
-      : window.location.origin;
+      : 'https://kill-world.onrender.com';
 
     this.socket = io(serverUrl, {
       transports: ['websocket'],
