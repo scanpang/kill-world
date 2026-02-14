@@ -17,6 +17,9 @@ export class HUD {
     this.killCountEl = document.getElementById('kill-count');
     this.bossAlertEl = document.getElementById('boss-alert');
     this.shopCoinsEl = document.getElementById('shop-coins');
+    this.levelEl = document.getElementById('player-level');
+    this.xpFillEl = document.getElementById('xp-fill');
+    this.shieldBarEl = document.getElementById('shield-fill');
     this.shopOpen = false;
     this.game = null;
 
@@ -70,7 +73,7 @@ export class HUD {
     const container = document.getElementById('shop-items');
     if (container) {
       container.addEventListener('click', (e) => {
-        if ('ontouchstart' in window) return; // skip on mobile, handled by touch
+        if ('ontouchstart' in window) return;
         const item = e.target.closest('.shop-item');
         if (item) this.buyItem(item.dataset.id);
       });
@@ -86,7 +89,7 @@ export class HUD {
       container.addEventListener('touchend', (e) => {
         if (!touchStartItem) return;
         const dy = Math.abs(e.changedTouches[0].clientY - touchStartY);
-        if (dy < 10) { // tap, not scroll
+        if (dy < 10) {
           e.preventDefault();
           this.buyItem(touchStartItem.dataset.id);
         }
@@ -127,19 +130,41 @@ export class HUD {
 
     this.game.player.coins -= shopItem.price;
 
-    if (itemId === 'HealthPack') {
-      this.game.player.health = Math.min(
-        this.game.player.health + 50,
-        this.game.player.maxHealth
-      );
-    } else if (itemId === 'Grenade') {
-      this.game.weapons.slots[3] = 'Grenade';
-      this.game.weapons.switchSlot(3);
-    } else {
-      const weaponConfig = WEAPONS[itemId];
-      if (weaponConfig) {
-        this.game.weapons.slots[3] = itemId;
+    switch (itemId) {
+      case 'HealthPack':
+        this.game.player.health = Math.min(
+          this.game.player.health + 50,
+          this.game.player.maxHealth
+        );
+        break;
+      case 'Grenade':
+        this.game.weapons.slots[3] = 'Grenade';
         this.game.weapons.switchSlot(3);
+        break;
+      case 'Armor':
+        this.game.player.armor = Math.min(this.game.player.armor + 0.3, 0.6);
+        break;
+      case 'SpeedBoost':
+        this.game.player.speedBonus = Math.min(this.game.player.speedBonus + 0.2, 0.6);
+        break;
+      case 'MaxHPUp':
+        this.game.player.maxHealth += 25;
+        this.game.player.health += 25;
+        break;
+      case 'AmmoBox':
+        this.game.weapons.currentAmmo = this.game.weapons.maxAmmo;
+        this.game.weapons.isReloading = false;
+        break;
+      case 'Shield':
+        this.game.player.shield += 50;
+        break;
+      default: {
+        const weaponConfig = WEAPONS[itemId];
+        if (weaponConfig) {
+          this.game.weapons.slots[3] = itemId;
+          this.game.weapons.switchSlot(3);
+        }
+        break;
       }
     }
 
@@ -166,7 +191,14 @@ export class HUD {
     setTimeout(() => this.bossAlertEl.classList.remove('show'), 4000);
   }
 
-  update({ health, maxHealth, ammo, maxAmmo, playerCount, coins, weaponName, currentSlot, isReloading, weaponId }) {
+  showZombieLevelUp(level) {
+    setTimeout(() => {
+      this.showBossAlert(`ZOMBIES LEVELED UP! Lv.${level}`);
+    }, 2000);
+  }
+
+  update({ health, maxHealth, ammo, maxAmmo, playerCount, coins, weaponName,
+           currentSlot, isReloading, weaponId, level, xp, xpToNext, shield }) {
     const pct = (health / maxHealth) * 100;
     this.healthFill.style.width = pct + '%';
     if (pct > 50) {
@@ -175,6 +207,16 @@ export class HUD {
       this.healthFill.style.background = 'linear-gradient(90deg, #ffa000, #ffca28)';
     } else {
       this.healthFill.style.background = 'linear-gradient(90deg, #d32f2f, #ff5252)';
+    }
+
+    // Shield bar
+    if (this.shieldBarEl) {
+      if (shield > 0) {
+        this.shieldBarEl.parentElement.style.display = '';
+        this.shieldBarEl.style.width = Math.min(shield, 100) + '%';
+      } else {
+        this.shieldBarEl.parentElement.style.display = 'none';
+      }
     }
 
     if (ammo === Infinity) {
@@ -189,6 +231,12 @@ export class HUD {
     this.playerCount.textContent = `PLAYERS: ${playerCount}`;
     if (this.coinDisplay) this.coinDisplay.textContent = `${coins}`;
     if (this.weaponName) this.weaponName.textContent = weaponName;
+
+    // Level & XP
+    if (this.levelEl) this.levelEl.textContent = `Lv.${level}`;
+    if (this.xpFillEl && xpToNext > 0) {
+      this.xpFillEl.style.width = ((xp / xpToNext) * 100) + '%';
+    }
 
     // Weapon icon
     if (this.weaponIconEl && weaponId) {

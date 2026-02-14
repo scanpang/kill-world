@@ -177,6 +177,71 @@ export class WeaponSystem {
         gun.add(barrel, glow, body, core, grip);
         break;
       }
+      case 'LaserRifle': {
+        const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.6), mat(0x333333));
+        barrel.position.z = -0.4;
+        const lens = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.03, 0.03, 0.04, 8),
+          new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.8 })
+        );
+        lens.rotation.x = Math.PI / 2;
+        lens.position.z = -0.68;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.12, 0.25), mat(0x444444));
+        body.position.set(0, -0.02, -0.1);
+        const grip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.14, 0.06), mat(0x333333));
+        grip.position.set(0, -0.12, 0.0);
+        gun.add(barrel, lens, body, grip);
+        break;
+      }
+      case 'ThunderGun': {
+        const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.45), mat(0x333355));
+        barrel.position.z = -0.3;
+        const coil1 = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.015, 6, 8), mat(0xffcc00));
+        coil1.position.z = -0.2;
+        const coil2 = coil1.clone();
+        coil2.position.z = -0.35;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.2), mat(0x444466));
+        body.position.set(0, -0.03, 0.0);
+        const grip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.14, 0.06), mat(0x333333));
+        grip.position.set(0, -0.13, 0.04);
+        gun.add(barrel, coil1, coil2, body, grip);
+        break;
+      }
+      case 'HellFire': {
+        for (let i = 0; i < 3; i++) {
+          const b = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.5, 6), mat(0x440000));
+          b.rotation.x = Math.PI / 2;
+          const a = (i / 3) * Math.PI * 2;
+          b.position.set(Math.cos(a) * 0.035, Math.sin(a) * 0.035, -0.35);
+          gun.add(b);
+        }
+        const muzzle = new THREE.Mesh(
+          new THREE.SphereGeometry(0.03, 6, 6),
+          new THREE.MeshStandardMaterial({ color: 0xff4400, emissive: 0xff4400, emissiveIntensity: 0.6 })
+        );
+        muzzle.position.z = -0.58;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.2), mat(0x551100));
+        body.position.set(0, -0.03, -0.05);
+        const grip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.14, 0.06), mat(0x331100));
+        grip.position.set(0, -0.13, 0.04);
+        gun.add(muzzle, body, grip);
+        break;
+      }
+      case 'FrostCannon': {
+        const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.5), mat(0x224466));
+        barrel.position.z = -0.35;
+        const tip = new THREE.Mesh(
+          new THREE.SphereGeometry(0.05, 8, 8),
+          new THREE.MeshStandardMaterial({ color: 0x66ccff, emissive: 0x66ccff, emissiveIntensity: 0.6 })
+        );
+        tip.position.z = -0.58;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.25), mat(0x335577));
+        body.position.set(0, -0.03, -0.05);
+        const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.15, 8), mat(0x4488aa));
+        tank.position.set(0, -0.12, -0.05);
+        gun.add(barrel, tip, body, tank);
+        break;
+      }
       default: {
         // Fallback generic gun
         const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.4), mat(0x333333));

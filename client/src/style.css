@@ -53,6 +53,27 @@ canvas { display: block; }
 .crosshair .line.left   { width: 14px; height: 2px; top: -1px; left: -20px; }
 .crosshair .line.right  { width: 14px; height: 2px; top: -1px; left: 6px; }
 
+/* Level & XP */
+#level-container {
+  position: absolute; bottom: 58px; left: 30px;
+  display: flex; align-items: center; gap: 8px;
+}
+#player-level {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 16px; font-weight: 900; color: #ffd700;
+  text-shadow: 0 0 8px rgba(255,215,0,0.5);
+}
+#xp-bar {
+  width: 160px; height: 6px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px; overflow: hidden;
+}
+#xp-fill {
+  width: 0%; height: 100%;
+  background: linear-gradient(90deg, #ffd700, #ffaa00);
+  border-radius: 3px; transition: width 0.3s ease;
+}
+
 /* Health */
 #health-bar {
   position: absolute; bottom: 30px; left: 30px;
@@ -68,6 +89,19 @@ canvas { display: block; }
 #health-text {
   position: absolute; bottom: 42px; left: 30px;
   color: #aaa; font-size: 13px; font-weight: 600; letter-spacing: 2px;
+}
+
+/* Shield */
+#shield-bar {
+  position: absolute; bottom: 22px; left: 30px;
+  width: 250px; height: 5px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 3px; overflow: hidden;
+}
+#shield-fill {
+  width: 0%; height: 100%;
+  background: linear-gradient(90deg, #44aaff, #66ccff);
+  border-radius: 3px; transition: width 0.3s ease;
 }
 
 /* Coins */
@@ -425,8 +459,12 @@ canvas { display: block; }
 @media (max-width: 768px) {
   #minimap { width: 100px; height: 100px; top: 8px; right: 8px; }
   #minimap canvas { width: 100px; height: 100px; }
+  #level-container { bottom: 48px; left: 16px; }
+  #player-level { font-size: 12px; }
+  #xp-bar { width: 100px; height: 4px; }
   #health-bar { bottom: 16px; left: 16px; width: 150px; }
   #health-text { bottom: 28px; left: 16px; font-size: 11px; }
+  #shield-bar { bottom: 10px; left: 16px; width: 150px; height: 3px; }
   #ammo-display { bottom: 42px; left: 180px; right: auto; padding: 4px 10px; }
   #ammo-current { font-size: 34px; }
   #ammo-max { font-size: 14px; }

@@ -9,6 +9,7 @@ export class NPCManager {
     this.npcs = [];
     this.map = null;
     this.bossAlive = false;
+    this.zombieLevel = 1; // increases when boss dies
   }
 
   spawnInitialNPCs() {
@@ -34,23 +35,28 @@ export class NPCManager {
 
   spawnNPC(x, z, type = 'normal') {
     const cfg = NPC_TYPES[type];
+    const lvl = type === 'boss' ? this.zombieLevel + 5 : this.zombieLevel;
+    const levelMul = 1 + (lvl - 1) * 0.15;
+    const dmgMul = 1 + (lvl - 1) * 0.1;
+
     const npc = {
-      mesh: this.createNPCMesh(cfg),
+      mesh: this.createNPCMesh(cfg, lvl),
       alive: true,
-      health: cfg.health,
-      maxHealth: cfg.health,
+      health: Math.floor(cfg.health * levelMul),
+      maxHealth: Math.floor(cfg.health * levelMul),
       speed: cfg.speed,
-      coinDrop: cfg.coinDrop,
-      damage: cfg.dmg,
+      coinDrop: Math.floor(cfg.coinDrop * (1 + (lvl - 1) * 0.1)),
+      damage: Math.floor(cfg.dmg * dmgMul),
       typeName: cfg.name,
       type: type,
+      level: lvl,
       isBoss: type === 'boss',
       spawnPos: { x, z },
       patrolTarget: null,
       state: 'patrol',
       stateTimer: 0,
       attackCooldown: 0,
-      aggroTimer: 0, // when hit, chase player regardless of distance
+      aggroTimer: 0,
     };
 
     npc.mesh.position.set(x, 0, z);
@@ -68,7 +74,77 @@ export class NPCManager {
     this.spawnNPC(x, z, 'boss');
   }
 
-  createNPCMesh(cfg) {
+  // Called when boss dies - level up all zombies
+  levelUpZombies() {
+    this.zombieLevel++;
+    for (const npc of this.npcs) {
+      if (!npc.alive || npc.isBoss) continue;
+      const cfg = NPC_TYPES[npc.type];
+      const lvl = this.zombieLevel;
+      const levelMul = 1 + (lvl - 1) * 0.15;
+      const dmgMul = 1 + (lvl - 1) * 0.1;
+
+      npc.level = lvl;
+      npc.maxHealth = Math.floor(cfg.health * levelMul);
+      npc.health = npc.maxHealth;
+      npc.damage = Math.floor(cfg.dmg * dmgMul);
+      npc.coinDrop = Math.floor(cfg.coinDrop * (1 + (lvl - 1) * 0.1));
+
+      // Update level label
+      this.updateLevelLabel(npc);
+    }
+  }
+
+  createLevelLabel(level, isBoss) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 48;
+    const ctx = canvas.getContext('2d');
+
+    ctx.clearRect(0, 0, 128, 48);
+
+    // Background pill
+    ctx.fillStyle = isBoss ? 'rgba(128,0,255,0.7)' : 'rgba(0,0,0,0.6)';
+    const w = 100, h = 32, x = 14, y = 8;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 8);
+    ctx.fill();
+
+    // Border
+    ctx.strokeStyle = isBoss ? '#ff00ff' : 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Text
+    ctx.fillStyle = isBoss ? '#ffcc00' : '#fff';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`Lv.${level}`, 64, 24);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    const mat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(2, 0.75, 1);
+    sprite.name = 'levelLabel';
+    return sprite;
+  }
+
+  updateLevelLabel(npc) {
+    const old = npc.mesh.getObjectByName('levelLabel');
+    if (old) {
+      old.material.map.dispose();
+      old.material.dispose();
+      npc.mesh.remove(old);
+    }
+    const cfg = NPC_TYPES[npc.type] || NPC_TYPES.normal;
+    const label = this.createLevelLabel(npc.level, npc.isBoss);
+    label.position.set(0, (3.8 + 1.2) * cfg.scale, 0);
+    npc.mesh.add(label);
+  }
+
+  createNPCMesh(cfg, level) {
     const group = new THREE.Group();
     const s = cfg.scale;
     const mat = (color) => new THREE.MeshStandardMaterial({ color });
@@ -155,6 +231,12 @@ export class NPCManager {
       shield.position.set(0, 2.0 * s, 0.5 * s);
       group.add(shield);
     }
+
+    // Level label above head
+    const isBoss = cfg === NPC_TYPES.boss;
+    const label = this.createLevelLabel(level, isBoss);
+    label.position.set(0, (3.8 + 1.2) * s, 0);
+    group.add(label);
 
     group.userData.leftArm = leftArm;
     group.userData.rightArm = rightArm;
@@ -310,23 +392,32 @@ export class NPCManager {
       setTimeout(() => {
         const newType = this.randomType();
         const cfg = NPC_TYPES[newType];
+        const lvl = this.zombieLevel;
+        const levelMul = 1 + (lvl - 1) * 0.15;
+        const dmgMul = 1 + (lvl - 1) * 0.1;
+
         npc.type = newType;
         npc.typeName = cfg.name;
-        npc.health = cfg.health;
-        npc.maxHealth = cfg.health;
+        npc.level = lvl;
+        npc.health = Math.floor(cfg.health * levelMul);
+        npc.maxHealth = npc.health;
         npc.speed = cfg.speed;
-        npc.coinDrop = cfg.coinDrop;
-        npc.damage = cfg.dmg;
+        npc.coinDrop = Math.floor(cfg.coinDrop * (1 + (lvl - 1) * 0.1));
+        npc.damage = Math.floor(cfg.dmg * dmgMul);
         npc.isBoss = false;
         npc.alive = true;
         npc.state = 'patrol';
+        npc.aggroTimer = 0;
 
         // Rebuild mesh
         npc.mesh.traverse(child => {
           if (child.geometry) child.geometry.dispose();
-          if (child.material) child.material.dispose();
+          if (child.material) {
+            if (child.material.map) child.material.map.dispose();
+            child.material.dispose();
+          }
         });
-        npc.mesh = this.createNPCMesh(cfg);
+        npc.mesh = this.createNPCMesh(cfg, lvl);
         npc.mesh.position.set(npc.spawnPos.x, 0, npc.spawnPos.z);
         this.scene.add(npc.mesh);
       }, NPC.RESPAWN_TIME * 1000);

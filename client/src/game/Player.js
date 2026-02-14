@@ -26,6 +26,16 @@ export class Player {
     // Coins
     this.coins = 0;
 
+    // Level & XP
+    this.level = 1;
+    this.xp = 0;
+    this.xpToNext = 100;
+
+    // Gear effects
+    this.armor = 0;       // damage reduction (0.0 - 1.0)
+    this.speedBonus = 0;  // speed multiplier bonus
+    this.shield = 0;      // absorb damage
+
     // Map reference for collision
     this.map = null;
 
@@ -60,10 +70,24 @@ export class Player {
     });
   }
 
+  addXP(amount) {
+    this.xp += amount;
+    while (this.xp >= this.xpToNext) {
+      this.xp -= this.xpToNext;
+      this.level++;
+      this.xpToNext = this.level * 100;
+      // Level up bonuses
+      this.maxHealth += 5;
+      this.health = this.maxHealth;
+    }
+    return this.level;
+  }
+
   update(delta) {
     if (this.isDead) return;
 
-    let speed = this.isSprinting ? PLAYER.SPRINT_SPEED : PLAYER.SPEED;
+    const baseSpeed = this.isSprinting ? PLAYER.SPRINT_SPEED : PLAYER.SPEED;
+    let speed = baseSpeed * (1 + this.speedBonus);
 
     const forward = new THREE.Vector3(
       -Math.sin(this.rotation.y), 0, -Math.cos(this.rotation.y)
@@ -85,7 +109,7 @@ export class Player {
     if (mobileLen > 0.1) {
       moveDir.addScaledVector(right, this.mobileMove.x);
       moveDir.addScaledVector(forward, -this.mobileMove.y);
-      speed = PLAYER.SPEED * Math.min(mobileLen, 1.0);
+      speed = PLAYER.SPEED * (1 + this.speedBonus) * Math.min(mobileLen, 1.0);
     }
 
     if (moveDir.length() > 0) moveDir.normalize();
@@ -138,6 +162,14 @@ export class Player {
   }
 
   takeDamage(amount) {
+    // Shield absorbs first
+    if (this.shield > 0) {
+      const absorbed = Math.min(this.shield, amount);
+      this.shield -= absorbed;
+      amount -= absorbed;
+    }
+    // Armor reduces remaining
+    amount = Math.floor(amount * (1 - this.armor));
     this.health = Math.max(0, this.health - amount);
     if (this.health <= 0) this.die();
   }
@@ -148,7 +180,7 @@ export class Player {
   }
 
   respawn() {
-    this.health = PLAYER.MAX_HEALTH;
+    this.health = this.maxHealth;
     this.isDead = false;
     this.position.set((Math.random() - 0.5) * 60, PLAYER.HEIGHT, (Math.random() - 0.5) * 60);
     this.velocityY = 0;

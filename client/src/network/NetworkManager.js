@@ -81,7 +81,7 @@ export class NetworkManager {
     });
   }
 
-  sendPosition(position, rotationY) {
+  sendPosition(position, rotationY, weaponId) {
     if (!this.connected) return;
 
     const now = performance.now();
@@ -93,6 +93,7 @@ export class NetworkManager {
       y: position.y,
       z: position.z,
       ry: rotationY,
+      weaponId: weaponId,
     });
   }
 

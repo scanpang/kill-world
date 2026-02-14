@@ -1,6 +1,6 @@
 // client/src/game/Game.js
 import * as THREE from 'three';
-import { NPC as NPC_CONST } from '../../../shared/constants.js';
+import { NPC as NPC_CONST, NPC_TYPES, BOSS_UNIQUE_WEAPONS } from '../../../shared/constants.js';
 import { SceneManager } from './SceneManager.js';
 import { Player } from './Player.js';
 import { MapBuilder } from './MapBuilder.js';
@@ -39,6 +39,7 @@ export class Game {
 
     // Kill tracking
     this.killCount = 0;
+    this.bossKillCount = 0;
 
     // NPC attack → player damage
     window.__onNPCAttack = (damage) => {
@@ -68,17 +69,35 @@ export class Game {
     this.player.addCoins(coinDrop);
     this.hud.showCoinPopup(coinDrop);
 
+    // XP from kill
+    const npcCfg = NPC_TYPES[npc.type] || NPC_TYPES.normal;
+    const xpGain = npcCfg.xp || 10;
+    const prevLevel = this.player.level;
+    this.player.addXP(xpGain);
+    if (this.player.level > prevLevel) {
+      this.hud.showBossAlert(`LEVEL UP! Lv.${this.player.level}`);
+    }
+
     // Fast and tank zombies count as 2 kills
     const killValue = (npc.type === 'fast' || npc.type === 'tank') ? 2 : 1;
     this.killCount += killValue;
     this.hud.updateKillCount(this.killCount);
 
     if (npc.isBoss) {
-      // Boss killed - award unique weapon
-      this.weapons.slots[3] = 'BossGun';
+      this.bossKillCount++;
+
+      // Random unique weapon drop
+      const pool = BOSS_UNIQUE_WEAPONS;
+      const dropId = pool[Math.floor(Math.random() * pool.length)];
+      this.weapons.slots[3] = dropId;
       this.weapons.switchSlot(3);
-      this.hud.showBossAlert('BOSS DEFEATED! PLASMA GUN ACQUIRED!');
+
+      this.hud.showBossAlert(`BOSS DEFEATED! ${this.weapons.config.name} ACQUIRED!`);
       this.hud.addKillFeedEntry('You', 'BOSS');
+
+      // Boss death → all zombies level up
+      this.npcManager.levelUpZombies();
+      this.hud.showZombieLevelUp(this.npcManager.zombieLevel);
     } else {
       this.hud.addKillFeedEntry('You', npc.typeName || 'Zombie');
     }
@@ -122,11 +141,16 @@ export class Game {
       currentSlot: this.weapons.currentSlot,
       isReloading: this.weapons.isReloading,
       weaponId: this.weapons.currentWeaponId,
+      level: this.player.level,
+      xp: this.player.xp,
+      xpToNext: this.player.xpToNext,
+      shield: this.player.shield,
     });
 
     this.network.sendPosition(
       this.player.getPosition(),
-      this.player.getRotationY()
+      this.player.getRotationY(),
+      this.weapons.currentWeaponId
     );
 
     this.scene.render();
@@ -158,10 +182,15 @@ export class Game {
 
   addRemotePlayer(id, data) {
     if (this.remotePlayers.has(id)) return;
-    const mesh = this.createBlockCharacter(data.color || 0xe74c3c);
+    const mesh = this.createBlockCharacter(data.color || 0xe74c3c, data.weaponId || 'MachineGun');
     mesh.position.set(data.x || 0, 0, data.z || 0);
     this.scene.add(mesh);
-    this.remotePlayers.set(id, { mesh, targetPosition: null, targetRotationY: 0 });
+    this.remotePlayers.set(id, {
+      mesh,
+      targetPosition: null,
+      targetRotationY: 0,
+      weaponId: data.weaponId || 'MachineGun',
+    });
   }
 
   removeRemotePlayer(id) {
@@ -177,10 +206,103 @@ export class Game {
     if (rp) {
       rp.targetPosition = new THREE.Vector3(data.x, 0, data.z);
       rp.targetRotationY = data.ry || 0;
+
+      // Update weapon if changed
+      if (data.weaponId && data.weaponId !== rp.weaponId) {
+        rp.weaponId = data.weaponId;
+        this.updateRemotePlayerWeapon(rp);
+      }
     }
   }
 
-  createBlockCharacter(bodyColor = 0xe74c3c) {
+  updateRemotePlayerWeapon(rp) {
+    // Remove old gun parts
+    const toRemove = [];
+    rp.mesh.traverse(c => { if (c.userData.isGun) toRemove.push(c); });
+    toRemove.forEach(c => {
+      rp.mesh.remove(c);
+      c.geometry?.dispose();
+      c.material?.dispose();
+    });
+
+    // Add new gun
+    const gunParts = this.createRemoteGun(rp.weaponId);
+    for (const part of gunParts) {
+      part.userData.isGun = true;
+      rp.mesh.add(part);
+    }
+  }
+
+  createRemoteGun(weaponId) {
+    const mat = (color) => new THREE.MeshStandardMaterial({ color });
+    const parts = [];
+
+    switch (weaponId) {
+      case 'Minigun': {
+        for (let i = 0; i < 3; i++) {
+          const b = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.6, 4), mat(0x333333));
+          b.rotation.x = Math.PI / 2;
+          const a = (i / 3) * Math.PI * 2;
+          b.position.set(0.95 + Math.cos(a) * 0.06, 2.0 + Math.sin(a) * 0.06, -0.35);
+          parts.push(b);
+        }
+        const housing = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.25), mat(0x444444));
+        housing.position.set(0.95, 2.0, -0.05);
+        parts.push(housing);
+        break;
+      }
+      case 'Shotgun': {
+        const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, 0.7), mat(0x333333));
+        barrel.position.set(0.95, 2.0, -0.4);
+        const stock = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.12, 0.2), mat(0x5c3a1e));
+        stock.position.set(0.95, 1.95, 0.0);
+        parts.push(barrel, stock);
+        break;
+      }
+      case 'Sniper': {
+        const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.8), mat(0x333333));
+        barrel.position.set(0.95, 2.0, -0.45);
+        const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.12, 6), mat(0x222222));
+        scope.rotation.x = Math.PI / 2;
+        scope.position.set(0.95, 2.1, -0.2);
+        parts.push(barrel, scope);
+        break;
+      }
+      case 'Revolver': case 'Glock': case 'Pistol': {
+        const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.3), mat(0x444444));
+        barrel.position.set(0.95, 2.0, -0.3);
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 0.15), mat(0x555555));
+        body.position.set(0.95, 1.95, -0.1);
+        parts.push(barrel, body);
+        break;
+      }
+      case 'Melee': {
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.5), mat(0xcccccc));
+        blade.position.set(0.95, 2.0, -0.35);
+        parts.push(blade);
+        break;
+      }
+      case 'Grenade': {
+        const gren = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 6), mat(0x445533));
+        gren.position.set(0.95, 2.0, -0.15);
+        parts.push(gren);
+        break;
+      }
+      default: {
+        // Default rifle
+        const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.5), mat(0x222222));
+        barrel.position.set(0.95, 2.0, -0.4);
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.15, 0.25), mat(0x444444));
+        body.position.set(0.95, 1.95, -0.1);
+        parts.push(barrel, body);
+        break;
+      }
+    }
+
+    return parts;
+  }
+
+  createBlockCharacter(bodyColor = 0xe74c3c, weaponId = 'MachineGun') {
     const group = new THREE.Group();
     const mat = (color) => new THREE.MeshStandardMaterial({ color });
 
@@ -218,13 +340,15 @@ export class Game {
     const rightLeg = new THREE.Mesh(legGeo, legMat);
     rightLeg.position.set(0.35, 0.7, 0);
 
-    // Gun in hand
-    const gunBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.5), mat(0x222222));
-    gunBarrel.position.set(0.95, 2.0, -0.4);
-    const gunBody = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.15, 0.25), mat(0x444444));
-    gunBody.position.set(0.95, 1.95, -0.1);
+    group.add(head, leftEye, rightEye, body, leftArm, rightArm, leftLeg, rightLeg);
 
-    group.add(head, leftEye, rightEye, body, leftArm, rightArm, leftLeg, rightLeg, gunBarrel, gunBody);
+    // Gun in hand (based on weaponId)
+    const gunParts = this.createRemoteGun(weaponId);
+    for (const part of gunParts) {
+      part.userData.isGun = true;
+      group.add(part);
+    }
+
     return group;
   }
 }

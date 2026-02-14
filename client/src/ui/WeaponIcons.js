@@ -78,6 +78,67 @@ const ICONS = {
     <rect x="21" y="8" width="6" height="12" fill="#fff"/>
     <rect x="17" y="11" width="14" height="6" fill="#fff"/>
   </svg>`,
+
+  LaserRifle: `<svg viewBox="0 0 48 28" fill="currentColor">
+    <rect x="4" y="10" width="30" height="5" rx="1"/>
+    <rect x="34" y="8" width="10" height="9" rx="2"/>
+    <line x1="2" y1="12.5" x2="6" y2="12.5" stroke="#ff0000" stroke-width="2"/>
+    <circle cx="4" cy="12.5" r="2" fill="none" stroke="#ff0000" stroke-width="1.5"/>
+    <rect x="14" y="15" width="5" height="7" rx="1"/>
+  </svg>`,
+
+  ThunderGun: `<svg viewBox="0 0 48 28" fill="currentColor">
+    <rect x="6" y="10" width="24" height="6" rx="2"/>
+    <rect x="30" y="8" width="14" height="10" rx="3"/>
+    <polygon points="4,8 8,14 5,14 9,20 3,14 6,14" fill="#ffcc00"/>
+    <rect x="12" y="16" width="6" height="6" rx="1"/>
+  </svg>`,
+
+  HellFire: `<svg viewBox="0 0 48 28" fill="currentColor">
+    <rect x="4" y="8" width="26" height="3" rx=".5"/>
+    <rect x="4" y="12" width="26" height="3" rx=".5"/>
+    <rect x="4" y="16" width="26" height="3" rx=".5"/>
+    <rect x="30" y="6" width="14" height="16" rx="3"/>
+    <rect x="12" y="19" width="6" height="5" rx="1"/>
+    <polygon points="2,6 5,10 3,10 6,14 1,10 3,10" fill="#ff4400"/>
+  </svg>`,
+
+  FrostCannon: `<svg viewBox="0 0 48 28" fill="currentColor">
+    <rect x="6" y="10" width="28" height="6" rx="2"/>
+    <rect x="34" y="8" width="10" height="10" rx="2"/>
+    <circle cx="6" cy="13" r="4" fill="none" stroke="#66ccff" stroke-width="2"/>
+    <rect x="14" y="16" width="6" height="7" rx="1"/>
+  </svg>`,
+
+  Armor: `<svg viewBox="0 0 48 28" fill="currentColor">
+    <path d="M24,3 L38,8 L36,20 L24,25 L12,20 L10,8 Z" fill="#4466aa"/>
+    <path d="M24,7 L33,10 L32,18 L24,22 L16,18 L15,10 Z" fill="#6688cc"/>
+  </svg>`,
+
+  SpeedBoost: `<svg viewBox="0 0 48 28" fill="currentColor">
+    <polygon points="18,4 32,14 18,14 30,24" fill="#ffcc00"/>
+    <polygon points="22,8 30,14 22,14 28,20" fill="#ff8800"/>
+  </svg>`,
+
+  MaxHPUp: `<svg viewBox="0 0 48 28" fill="currentColor">
+    <rect x="14" y="4" width="20" height="20" rx="3" fill="#22aa44"/>
+    <rect x="21" y="8" width="6" height="12" fill="#fff"/>
+    <rect x="17" y="11" width="14" height="6" fill="#fff"/>
+    <polygon points="36,4 40,10 36,8 32,10" fill="#ffcc00"/>
+  </svg>`,
+
+  AmmoBox: `<svg viewBox="0 0 48 28" fill="currentColor">
+    <rect x="10" y="6" width="28" height="18" rx="2" fill="#5c4a1e"/>
+    <rect x="13" y="9" width="22" height="12" rx="1" fill="#3a3010"/>
+    <rect x="18" y="12" width="4" height="6" fill="#ffcc00"/>
+    <rect x="24" y="12" width="4" height="6" fill="#ffcc00"/>
+    <rect x="30" y="12" width="4" height="6" fill="#ffcc00"/>
+  </svg>`,
+
+  Shield: `<svg viewBox="0 0 48 28" fill="currentColor">
+    <path d="M24,2 L40,8 L38,22 L24,27 L10,22 L8,8 Z" fill="none" stroke="#44aaff" stroke-width="3"/>
+    <path d="M24,7 L34,11 L33,20 L24,23 L15,20 L14,11 Z" fill="#44aaff" opacity="0.3"/>
+  </svg>`,
 };
 
 export function getWeaponIcon(id) {

@@ -148,19 +148,84 @@ export const WEAPONS = {
     auto: true,
     price: 0,
     type: 'gun',
+    unique: true,
+  },
+  LaserRifle: {
+    name: '레이저 라이플',
+    damage: 60,
+    headshotMul: 2.0,
+    fireRate: 200,
+    maxAmmo: 30,
+    reloadTime: 2000,
+    spread: 0.005,
+    range: 500,
+    auto: true,
+    price: 0,
+    type: 'gun',
+    unique: true,
+  },
+  ThunderGun: {
+    name: '썬더건',
+    damage: 40,
+    headshotMul: 1.5,
+    fireRate: 400,
+    maxAmmo: 20,
+    reloadTime: 3000,
+    spread: 0.04,
+    range: 150,
+    auto: false,
+    price: 0,
+    type: 'gun',
+    unique: true,
+    chainCount: 3,
+  },
+  HellFire: {
+    name: '헬파이어',
+    damage: 12,
+    headshotMul: 1.5,
+    fireRate: 40,
+    maxAmmo: 300,
+    reloadTime: 5000,
+    spread: 0.06,
+    range: 100,
+    auto: true,
+    price: 0,
+    type: 'gun',
+    unique: true,
+  },
+  FrostCannon: {
+    name: '프로스트 캐논',
+    damage: 30,
+    headshotMul: 2.0,
+    fireRate: 300,
+    maxAmmo: 40,
+    reloadTime: 2500,
+    spread: 0.03,
+    range: 120,
+    auto: true,
+    price: 0,
+    type: 'gun',
+    unique: true,
   },
 };
+
+export const BOSS_UNIQUE_WEAPONS = ['BossGun', 'LaserRifle', 'ThunderGun', 'HellFire', 'FrostCannon'];
 
 export const WEAPON_SLOTS = ['MachineGun', 'Pistol', 'Melee', 'Grenade'];
 
 export const SHOP_ITEMS = [
-  { id: 'Minigun', name: '미니건', price: 1500, desc: '고속 연사 기관총' },
-  { id: 'Revolver', name: '리볼버', price: 550, desc: '강력한 보조무기' },
-  { id: 'Glock', name: '글록', price: 350, desc: '빠른 연사 보조무기' },
-  { id: 'Shotgun', name: '샷건', price: 300, desc: '근거리 강력 산탄' },
-  { id: 'Sniper', name: '스나이퍼', price: 500, desc: '원거리 고데미지' },
-  { id: 'Grenade', name: '수류탄', price: 200, desc: '범위 큰 데미지' },
-  { id: 'HealthPack', name: '회복팩', price: 50, desc: 'HP 50 회복' },
+  { id: 'Minigun', name: '미니건', price: 1500, desc: '고속 연사 기관총', category: 'weapon' },
+  { id: 'Revolver', name: '리볼버', price: 550, desc: '강력한 보조무기', category: 'weapon' },
+  { id: 'Glock', name: '글록', price: 350, desc: '빠른 연사 보조무기', category: 'weapon' },
+  { id: 'Shotgun', name: '샷건', price: 300, desc: '근거리 강력 산탄', category: 'weapon' },
+  { id: 'Sniper', name: '스나이퍼', price: 500, desc: '원거리 고데미지', category: 'weapon' },
+  { id: 'Grenade', name: '수류탄', price: 200, desc: '범위 큰 데미지', category: 'weapon' },
+  { id: 'HealthPack', name: '회복팩', price: 50, desc: 'HP 50 회복', category: 'consumable' },
+  { id: 'Armor', name: '방탄복', price: 800, desc: '피해 30% 감소', category: 'gear' },
+  { id: 'SpeedBoost', name: '스피드 부스트', price: 600, desc: '이동속도 +20%', category: 'gear' },
+  { id: 'MaxHPUp', name: '체력 증가', price: 400, desc: '최대 HP +25', category: 'consumable' },
+  { id: 'AmmoBox', name: '탄약 박스', price: 100, desc: '현재 무기 탄약 충전', category: 'consumable' },
+  { id: 'Shield', name: '보호막', price: 500, desc: '50 데미지 흡수', category: 'gear' },
 ];
 
 export const NPC = {
@@ -175,10 +240,10 @@ export const NPC = {
 };
 
 export const NPC_TYPES = {
-  normal:  { health: 80,   speed: 9.8,  scale: 1,    bodyColor: 0x8b0000, coinDrop: 25,  dmg: 10, name: 'Zombie' },
-  tank:    { health: 250,  speed: 11.2, scale: 1.35, bodyColor: 0x2d1b69, coinDrop: 60,  dmg: 20, name: 'Tank' },
-  fast:    { health: 50,   speed: 13.3, scale: 0.85, bodyColor: 0xcc4400, coinDrop: 40,  dmg: 8,  name: 'Runner' },
-  boss:    { health: 2000, speed: 14.7, scale: 2.2,  bodyColor: 0x4a0080, coinDrop: 500, dmg: 30, name: 'BOSS' },
+  normal:  { health: 80,   speed: 9.8,  scale: 1,    bodyColor: 0x8b0000, coinDrop: 25,  dmg: 10, name: 'Zombie',  xp: 10 },
+  tank:    { health: 250,  speed: 11.2, scale: 1.35, bodyColor: 0x2d1b69, coinDrop: 60,  dmg: 20, name: 'Tank',    xp: 25 },
+  fast:    { health: 50,   speed: 13.3, scale: 0.85, bodyColor: 0xcc4400, coinDrop: 40,  dmg: 8,  name: 'Runner',  xp: 20 },
+  boss:    { health: 3500, speed: 15.5, scale: 2.5,  bodyColor: 0x4a0080, coinDrop: 800, dmg: 45, name: 'BOSS',    xp: 300 },
 };
 
 export const EVENTS = {
