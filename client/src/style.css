@@ -117,19 +117,51 @@ canvas { display: block; }
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; } }
 
-/* Click Overlay */
+/* Pause Overlay */
 #overlay {
   position: fixed; inset: 0; z-index: 200;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.6);
   display: none;
   align-items: center;
   justify-content: center;
   cursor: pointer;
 }
 #overlay.active { display: flex; }
-#overlay p {
+.pause-box {
+  text-align: center;
+}
+.pause-box h2 {
   font-family: 'Orbitron', sans-serif;
-  font-size: 24px;
+  font-size: 36px;
+  font-weight: 900;
+  color: #ff6b35;
+  margin-bottom: 24px;
+}
+.controls-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 30px;
+  font-size: 16px;
+  color: #ccc;
+}
+.controls-list .key {
+  display: inline-block;
+  min-width: 100px;
+  text-align: right;
+  margin-right: 12px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(255,255,255,0.1);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+.resume-text {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 18px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.7);
   animation: pulse 2s ease-in-out infinite;

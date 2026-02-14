@@ -1,6 +1,6 @@
 // client/src/game/Player.js
 import * as THREE from 'three';
-import { PLAYER } from '../../../shared/constants.js';
+import { PLAYER, GAME } from '../../../shared/constants.js';
 
 export class Player {
   constructor(sceneManager, physics) {
@@ -15,19 +15,21 @@ export class Player {
     // Movement state
     this.keys = {};
     this.rotation = { x: 0, y: 0 };
-    this.velocity = new THREE.Vector3();
+    this.position = new THREE.Vector3(0, PLAYER.HEIGHT, 0);
+    this.velocityY = 0;
     this.isGrounded = false;
     this.isSprinting = false;
-
-    // Physics body (created in init)
-    this.body = null;
 
     this.setupInput();
   }
 
   init() {
-    this.body = this.physics.createPlayerBody({ x: 0, y: 5, z: 0 });
-    this.camera.position.set(0, PLAYER.HEIGHT, 0);
+    this.position.set(
+      (Math.random() - 0.5) * 40,
+      PLAYER.HEIGHT,
+      (Math.random() - 0.5) * 40
+    );
+    this.camera.position.copy(this.position);
   }
 
   setupInput() {
@@ -43,7 +45,6 @@ export class Player {
 
     document.addEventListener('mousemove', (e) => {
       if (!document.pointerLockElement) return;
-
       this.rotation.y -= e.movementX * 0.002;
       this.rotation.x -= e.movementY * 0.002;
       this.rotation.x = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, this.rotation.x));
@@ -51,10 +52,11 @@ export class Player {
   }
 
   update(delta) {
-    if (this.isDead || !this.body) return;
+    if (this.isDead) return;
 
     const speed = this.isSprinting ? PLAYER.SPRINT_SPEED : PLAYER.SPEED;
 
+    // Movement direction
     const forward = new THREE.Vector3(
       -Math.sin(this.rotation.y),
       0,
@@ -74,33 +76,40 @@ export class Player {
 
     if (moveDir.length() > 0) moveDir.normalize();
 
-    this.body.velocity.x = moveDir.x * speed;
-    this.body.velocity.z = moveDir.z * speed;
+    // Apply horizontal movement directly
+    this.position.x += moveDir.x * speed * delta;
+    this.position.z += moveDir.z * speed * delta;
 
-    this.isGrounded = Math.abs(this.body.velocity.y) < 0.5 && this.body.position.y < PLAYER.HEIGHT + 0.5;
+    // Gravity & jump
+    this.isGrounded = this.position.y <= PLAYER.HEIGHT;
 
     if (this.keys['Space'] && this.isGrounded) {
-      this.body.velocity.y = PLAYER.JUMP_FORCE;
+      this.velocityY = PLAYER.JUMP_FORCE;
     }
 
-    this.camera.position.set(
-      this.body.position.x,
-      this.body.position.y + PLAYER.HEIGHT / 2,
-      this.body.position.z
-    );
+    this.velocityY += GAME.GRAVITY * delta;
+    this.position.y += this.velocityY * delta;
 
+    // Floor clamp
+    if (this.position.y < PLAYER.HEIGHT) {
+      this.position.y = PLAYER.HEIGHT;
+      this.velocityY = 0;
+    }
+
+    // Map boundary
+    const half = GAME.MAP_SIZE / 2 - 2;
+    this.position.x = Math.max(-half, Math.min(half, this.position.x));
+    this.position.z = Math.max(-half, Math.min(half, this.position.z));
+
+    // Sync camera
+    this.camera.position.copy(this.position);
     this.camera.rotation.order = 'YXZ';
     this.camera.rotation.y = this.rotation.y;
     this.camera.rotation.x = this.rotation.x;
   }
 
   getPosition() {
-    if (!this.body) return { x: 0, y: 0, z: 0 };
-    return {
-      x: this.body.position.x,
-      y: this.body.position.y,
-      z: this.body.position.z,
-    };
+    return { x: this.position.x, y: this.position.y, z: this.position.z };
   }
 
   getRotationY() {
@@ -122,9 +131,11 @@ export class Player {
   respawn() {
     this.health = PLAYER.MAX_HEALTH;
     this.isDead = false;
-    const angle = Math.random() * Math.PI * 2;
-    const dist = 20 + Math.random() * 30;
-    this.body.position.set(Math.cos(angle) * dist, 5, Math.sin(angle) * dist);
-    this.body.velocity.set(0, 0, 0);
+    this.position.set(
+      (Math.random() - 0.5) * 60,
+      PLAYER.HEIGHT,
+      (Math.random() - 0.5) * 60
+    );
+    this.velocityY = 0;
   }
 }
