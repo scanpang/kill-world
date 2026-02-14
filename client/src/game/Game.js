@@ -174,8 +174,8 @@ export class Game {
       this.hud.addKillFeedEntry('You', npc.typeName || 'Zombie');
     }
 
-    // Boss spawn every 50 kills
-    if (this.killCount >= 50 && this.killCount % 50 === 0 && !this.npcManager.bossAlive) {
+    // Boss spawn every 25 kills
+    if (this.killCount >= 25 && this.killCount % 25 === 0 && !this.npcManager.bossAlive) {
       this.npcManager.spawnBoss();
       this.hud.showBossAlert('BOSS ZOMBIE APPEARED!');
       this.hud.screenShake();

@@ -21,7 +21,7 @@ export const WEAPONS = {
     name: '기본총',
     damage: 10,
     headshotMul: 2.0,
-    fireRate: 200,      // 5/sec
+    fireRate: 167,      // 6/sec
     maxAmmo: 40,
     reloadTime: 2000,
     spread: 0.03,

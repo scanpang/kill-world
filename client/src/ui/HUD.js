@@ -50,14 +50,14 @@ export class HUD {
 
   setupShop() {
     document.addEventListener('keydown', (e) => {
-      if (e.code === 'KeyB' && this.shopAvailable) this.toggleShop();
+      if (e.code === 'KeyB') this.toggleShop();
     });
 
     const shopBtn = document.getElementById('btn-shop');
     if (shopBtn) {
       shopBtn.addEventListener('touchstart', (e) => {
         e.preventDefault();
-        if (this.shopAvailable) this.toggleShop();
+        this.toggleShop();
       }, { passive: false });
     }
 
@@ -106,7 +106,6 @@ export class HUD {
   }
 
   openShop() {
-    if (!this.shopAvailable) return;
     this.shopOpen = true;
     const shop = document.getElementById('shop-panel');
     if (shop) shop.classList.add('active');
@@ -116,7 +115,6 @@ export class HUD {
 
   closeShop() {
     this.shopOpen = false;
-    this.shopAvailable = false; // One-time per boss
     const shop = document.getElementById('shop-panel');
     if (shop) shop.classList.remove('active');
     const canvas = document.querySelector('canvas');
