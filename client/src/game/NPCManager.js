@@ -38,17 +38,17 @@ export class NPCManager {
   spawnNPC(x, z, type = 'normal') {
     const cfg = NPC_TYPES[type];
     const lvl = type === 'boss' ? this.zombieLevel + 5 : this.zombieLevel;
-    const levelMul = 1 + (lvl - 1) * 0.15;
-    const dmgMul = 1 + (lvl - 1) * 0.1;
+    // All stats scale 10% per level
+    const levelMul = 1 + (lvl - 1) * 0.1;
 
     const npc = {
       mesh: this.createNPCMesh(cfg, lvl),
       alive: true,
       health: Math.floor(cfg.health * levelMul),
       maxHealth: Math.floor(cfg.health * levelMul),
-      speed: cfg.speed,
-      coinDrop: Math.floor(cfg.coinDrop * (1 + (lvl - 1) * 0.1)),
-      damage: Math.floor(cfg.dmg * dmgMul),
+      speed: cfg.speed * levelMul,
+      coinDrop: Math.floor(cfg.coinDrop * levelMul),
+      damage: Math.floor(cfg.dmg * levelMul),
       typeName: cfg.name,
       type: type,
       level: lvl,
@@ -83,14 +83,15 @@ export class NPCManager {
       if (!npc.alive || npc.isBoss) continue;
       const cfg = NPC_TYPES[npc.type];
       const lvl = this.zombieLevel;
-      const levelMul = 1 + (lvl - 1) * 0.15;
-      const dmgMul = 1 + (lvl - 1) * 0.1;
+      // All stats scale 10% per level
+      const levelMul = 1 + (lvl - 1) * 0.1;
 
       npc.level = lvl;
       npc.maxHealth = Math.floor(cfg.health * levelMul);
       npc.health = npc.maxHealth;
-      npc.damage = Math.floor(cfg.dmg * dmgMul);
-      npc.coinDrop = Math.floor(cfg.coinDrop * (1 + (lvl - 1) * 0.1));
+      npc.speed = cfg.speed * levelMul;
+      npc.damage = Math.floor(cfg.dmg * levelMul);
+      npc.coinDrop = Math.floor(cfg.coinDrop * levelMul);
 
       // Update level label
       this.updateLevelLabel(npc);
@@ -413,17 +414,16 @@ export class NPCManager {
         const newType = this.randomType();
         const cfg = NPC_TYPES[newType];
         const lvl = this.zombieLevel;
-        const levelMul = 1 + (lvl - 1) * 0.15;
-        const dmgMul = 1 + (lvl - 1) * 0.1;
+        const levelMul = 1 + (lvl - 1) * 0.1;
 
         npc.type = newType;
         npc.typeName = cfg.name;
         npc.level = lvl;
         npc.health = Math.floor(cfg.health * levelMul);
         npc.maxHealth = npc.health;
-        npc.speed = cfg.speed;
-        npc.coinDrop = Math.floor(cfg.coinDrop * (1 + (lvl - 1) * 0.1));
-        npc.damage = Math.floor(cfg.dmg * dmgMul);
+        npc.speed = cfg.speed * levelMul;
+        npc.coinDrop = Math.floor(cfg.coinDrop * levelMul);
+        npc.damage = Math.floor(cfg.dmg * levelMul);
         npc.isBoss = false;
         npc.alive = true;
         npc.state = 'patrol';

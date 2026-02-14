@@ -1,6 +1,6 @@
 // client/src/game/Game.js
 import * as THREE from 'three';
-import { NPC as NPC_CONST, NPC_TYPES, BOSS_UNIQUE_WEAPONS } from '../../../shared/constants.js';
+import { NPC as NPC_CONST, NPC_TYPES, BOSS_UNIQUE_WEAPONS, WEAPONS } from '../../../shared/constants.js';
 import { SceneManager } from './SceneManager.js';
 import { Player } from './Player.js';
 import { MapBuilder } from './MapBuilder.js';
@@ -46,10 +46,14 @@ export class Game {
     // Kill tracking
     this.killCount = 0;
     this.bossKillCount = 0;
+    this.gameOver = false;
 
     // NPC attack → player damage
     window.__onNPCAttack = (damage) => {
       this.player.takeDamage(damage);
+      if (this.player.isDead && !this.gameOver) {
+        this.showDeathScreen();
+      }
     };
 
     // Remote players
@@ -79,16 +83,27 @@ export class Game {
 
     // XP from kill
     const npcCfg = NPC_TYPES[npc.type] || NPC_TYPES.normal;
-    const xpGain = npcCfg.xp || 10;
+    const xpGain = npcCfg.xp || 1;
     const prevLevel = this.player.level;
-    this.player.addXP(xpGain);
-    if (this.player.level > prevLevel) {
-      this.hud.showBossAlert(`LEVEL UP! Lv.${this.player.level}`);
+    const leveled = this.player.addXP(xpGain);
+
+    if (leveled) {
+      this.hud.showBossAlert(`LEVEL UP! Lv.${this.player.level} (DMG +${Math.round((this.player.damageMultiplier - 1) * 100)}%)`);
+
+      // Special weapon full reload on level up
+      for (let i = 0; i < this.weapons.slots.length; i++) {
+        const wid = this.weapons.slots[i];
+        if (wid && WEAPONS[wid] && WEAPONS[wid].unique) {
+          this.weapons.slotAmmo[wid] = WEAPONS[wid].maxAmmo;
+          // If currently equipped, update current ammo too
+          if (this.weapons.currentWeaponId === wid) {
+            this.weapons.currentAmmo = WEAPONS[wid].maxAmmo;
+          }
+        }
+      }
     }
 
-    // Fast and tank zombies count as 2 kills
-    const killValue = (npc.type === 'fast' || npc.type === 'tank') ? 2 : 1;
-    this.killCount += killValue;
+    this.killCount++;
     this.hud.updateKillCount(this.killCount);
 
     if (npc.isBoss) {
@@ -98,6 +113,7 @@ export class Game {
       const pool = BOSS_UNIQUE_WEAPONS;
       const dropId = pool[Math.floor(Math.random() * pool.length)];
       this.weapons.slots[3] = dropId;
+      this.weapons.slotAmmo[dropId] = WEAPONS[dropId].maxAmmo;
       this.weapons.switchSlot(3);
 
       this.hud.showBossAlert(`BOSS DEFEATED! ${this.weapons.config.name} ACQUIRED!`);
@@ -111,9 +127,29 @@ export class Game {
     }
 
     // Boss spawn every 50 kills
-    if (this.killCount >= 50 && this.killCount % 50 < killValue && !this.npcManager.bossAlive) {
+    if (this.killCount >= 50 && this.killCount % 50 === 0 && !this.npcManager.bossAlive) {
       this.npcManager.spawnBoss();
       this.hud.showBossAlert('BOSS ZOMBIE APPEARED!');
+    }
+  }
+
+  showDeathScreen() {
+    this.gameOver = true;
+    this.isRunning = false;
+    this.sound.stopBGM();
+
+    const overlay = document.getElementById('death-screen');
+    if (overlay) {
+      document.getElementById('death-kills').textContent = this.killCount;
+      document.getElementById('death-level').textContent = this.player.level;
+      document.getElementById('death-xp').textContent = this.player.totalXP;
+      overlay.classList.add('active');
+    }
+
+    // Restart button
+    const restartBtn = document.getElementById('death-restart');
+    if (restartBtn) {
+      restartBtn.onclick = () => location.reload();
     }
   }
 
@@ -124,6 +160,12 @@ export class Game {
     requestAnimationFrame(() => this.loop());
 
     const delta = this.clock.getDelta();
+
+    // Check death during gameplay
+    if (this.player.isDead && !this.gameOver) {
+      this.showDeathScreen();
+      return;
+    }
 
     this.mobileControls.update();
     this.physics.update(delta);
@@ -145,14 +187,14 @@ export class Game {
       maxAmmo: this.weapons.maxAmmo,
       playerCount: this.remotePlayers.size + 1,
       coins: this.player.coins,
-      weaponName: this.weapons.config.name,
+      weaponName: this.weapons.config ? this.weapons.config.name : '',
       currentSlot: this.weapons.currentSlot,
       isReloading: this.weapons.isReloading,
       weaponId: this.weapons.currentWeaponId,
       level: this.player.level,
       xp: this.player.xp,
       xpToNext: this.player.xpToNext,
-      shield: this.player.shield,
+      damageBonus: Math.round((this.player.damageMultiplier - 1) * 100),
     });
 
     this.network.sendPosition(
@@ -190,14 +232,14 @@ export class Game {
 
   addRemotePlayer(id, data) {
     if (this.remotePlayers.has(id)) return;
-    const mesh = this.createBlockCharacter(data.color || 0xe74c3c, data.weaponId || 'MachineGun');
+    const mesh = this.createBlockCharacter(data.color || 0xe74c3c, data.weaponId || 'BasicGun');
     mesh.position.set(data.x || 0, 0, data.z || 0);
     this.scene.add(mesh);
     this.remotePlayers.set(id, {
       mesh,
       targetPosition: null,
       targetRotationY: 0,
-      weaponId: data.weaponId || 'MachineGun',
+      weaponId: data.weaponId || 'BasicGun',
     });
   }
 
@@ -214,8 +256,6 @@ export class Game {
     if (rp) {
       rp.targetPosition = new THREE.Vector3(data.x, 0, data.z);
       rp.targetRotationY = data.ry || 0;
-
-      // Update weapon if changed
       if (data.weaponId && data.weaponId !== rp.weaponId) {
         rp.weaponId = data.weaponId;
         this.updateRemotePlayerWeapon(rp);
@@ -224,7 +264,6 @@ export class Game {
   }
 
   updateRemotePlayerWeapon(rp) {
-    // Remove old gun parts
     const toRemove = [];
     rp.mesh.traverse(c => { if (c.userData.isGun) toRemove.push(c); });
     toRemove.forEach(c => {
@@ -232,8 +271,6 @@ export class Game {
       c.geometry?.dispose();
       c.material?.dispose();
     });
-
-    // Add new gun
     const gunParts = this.createRemoteGun(rp.weaponId);
     for (const part of gunParts) {
       part.userData.isGun = true;
@@ -244,7 +281,6 @@ export class Game {
   createRemoteGun(weaponId) {
     const mat = (color) => new THREE.MeshStandardMaterial({ color });
     const parts = [];
-
     switch (weaponId) {
       case 'Minigun': {
         for (let i = 0; i < 3; i++) {
@@ -254,109 +290,87 @@ export class Game {
           b.position.set(0.95 + Math.cos(a) * 0.06, 2.0 + Math.sin(a) * 0.06, -0.35);
           parts.push(b);
         }
-        const housing = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.25), mat(0x444444));
-        housing.position.set(0.95, 2.0, -0.05);
-        parts.push(housing);
         break;
       }
       case 'Shotgun': {
         const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, 0.7), mat(0x333333));
         barrel.position.set(0.95, 2.0, -0.4);
-        const stock = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.12, 0.2), mat(0x5c3a1e));
-        stock.position.set(0.95, 1.95, 0.0);
-        parts.push(barrel, stock);
+        parts.push(barrel);
         break;
       }
-      case 'Sniper': {
-        const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.8), mat(0x333333));
-        barrel.position.set(0.95, 2.0, -0.45);
-        const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.12, 6), mat(0x222222));
-        scope.rotation.x = Math.PI / 2;
-        scope.position.set(0.95, 2.1, -0.2);
-        parts.push(barrel, scope);
-        break;
-      }
-      case 'Revolver': case 'Glock': case 'Pistol': {
+      case 'Revolver': case 'Glock': {
         const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.3), mat(0x444444));
         barrel.position.set(0.95, 2.0, -0.3);
-        const body = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 0.15), mat(0x555555));
-        body.position.set(0.95, 1.95, -0.1);
-        parts.push(barrel, body);
+        parts.push(barrel);
         break;
       }
-      case 'Melee': {
+      case 'Knife': {
         const blade = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.5), mat(0xcccccc));
         blade.position.set(0.95, 2.0, -0.35);
         parts.push(blade);
         break;
       }
-      case 'Grenade': {
-        const gren = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 6), mat(0x445533));
-        gren.position.set(0.95, 2.0, -0.15);
-        parts.push(gren);
+      case 'Axe': {
+        const handle = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.5), mat(0x5c3a1e));
+        handle.position.set(0.95, 2.0, -0.35);
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.1), mat(0x888888));
+        head.position.set(0.95, 2.0, -0.55);
+        parts.push(handle, head);
+        break;
+      }
+      case 'Railgun': {
+        const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.7), mat(0x2244aa));
+        barrel.position.set(0.95, 2.0, -0.45);
+        parts.push(barrel);
+        break;
+      }
+      case 'PlasmaGun': {
+        const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.5), mat(0x6600aa));
+        barrel.position.set(0.95, 2.0, -0.4);
+        parts.push(barrel);
         break;
       }
       default: {
-        // Default rifle
         const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.5), mat(0x222222));
         barrel.position.set(0.95, 2.0, -0.4);
-        const body = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.15, 0.25), mat(0x444444));
-        body.position.set(0.95, 1.95, -0.1);
-        parts.push(barrel, body);
+        parts.push(barrel);
         break;
       }
     }
-
     return parts;
   }
 
-  createBlockCharacter(bodyColor = 0xe74c3c, weaponId = 'MachineGun') {
+  createBlockCharacter(bodyColor = 0xe74c3c, weaponId = 'BasicGun') {
     const group = new THREE.Group();
     const mat = (color) => new THREE.MeshStandardMaterial({ color });
-
-    // Head
     const head = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2), mat(0xffcc88));
-    head.position.y = 3.6;
-    head.castShadow = true;
-
-    // Eyes
+    head.position.y = 3.6; head.castShadow = true;
     const eyeMat = mat(0x000000);
     const eyeGeo = new THREE.BoxGeometry(0.15, 0.15, 0.05);
     const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
     leftEye.position.set(-0.25, 3.7, 0.61);
     const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
     rightEye.position.set(0.25, 3.7, 0.61);
-
-    // Body
     const body = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.6, 0.8), mat(bodyColor));
-    body.position.y = 2.2;
-    body.castShadow = true;
-
-    // Arms
+    body.position.y = 2.2; body.castShadow = true;
     const armGeo = new THREE.BoxGeometry(0.5, 1.4, 0.5);
     const armMat = mat(bodyColor);
     const leftArm = new THREE.Mesh(armGeo, armMat);
     leftArm.position.set(-0.95, 2.2, 0);
     const rightArm = new THREE.Mesh(armGeo, armMat);
     rightArm.position.set(0.95, 2.2, 0);
-
-    // Legs
     const legGeo = new THREE.BoxGeometry(0.6, 1.4, 0.6);
     const legMat = mat(0x2c3e50);
     const leftLeg = new THREE.Mesh(legGeo, legMat);
     leftLeg.position.set(-0.35, 0.7, 0);
     const rightLeg = new THREE.Mesh(legGeo, legMat);
     rightLeg.position.set(0.35, 0.7, 0);
-
     group.add(head, leftEye, rightEye, body, leftArm, rightArm, leftLeg, rightLeg);
-
-    // Gun in hand (based on weaponId)
     const gunParts = this.createRemoteGun(weaponId);
     for (const part of gunParts) {
       part.userData.isGun = true;
       group.add(part);
     }
-
     return group;
   }
 }

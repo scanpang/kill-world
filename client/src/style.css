@@ -91,17 +91,10 @@ canvas { display: block; }
   color: #aaa; font-size: 13px; font-weight: 600; letter-spacing: 2px;
 }
 
-/* Shield */
-#shield-bar {
-  position: absolute; bottom: 22px; left: 30px;
-  width: 250px; height: 5px;
-  background: rgba(255,255,255,0.05);
-  border-radius: 3px; overflow: hidden;
-}
-#shield-fill {
-  width: 0%; height: 100%;
-  background: linear-gradient(90deg, #44aaff, #66ccff);
-  border-radius: 3px; transition: width 0.3s ease;
+/* Empty weapon slot */
+#weapon-slots .slot.empty-slot {
+  opacity: 0.3;
+  border-color: rgba(255,255,255,0.05);
 }
 
 /* Coins */
@@ -464,7 +457,6 @@ canvas { display: block; }
   #xp-bar { width: 100px; height: 4px; }
   #health-bar { bottom: 16px; left: 16px; width: 150px; }
   #health-text { bottom: 28px; left: 16px; font-size: 11px; }
-  #shield-bar { bottom: 10px; left: 16px; width: 150px; height: 3px; }
   #ammo-display { bottom: 42px; left: 180px; right: auto; padding: 4px 10px; }
   #ammo-current { font-size: 34px; }
   #ammo-max { font-size: 14px; }
@@ -482,4 +474,83 @@ canvas { display: block; }
   #kill-count { top: 36px; font-size: 10px; }
   #boss-alert { font-size: 18px; top: 25%; }
   #shop-panel { width: 280px; max-height: 70vh; }
+}
+
+/* ─── Death Screen ─── */
+#death-screen {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(0,0,0,0);
+  display: none; align-items: center; justify-content: center;
+  transition: background 1s ease;
+}
+#death-screen.active {
+  display: flex;
+  background: rgba(10,0,0,0.92);
+  animation: deathFadeIn 1s ease forwards;
+}
+@keyframes deathFadeIn {
+  from { background: rgba(180,0,0,0.6); }
+  to { background: rgba(10,0,0,0.92); }
+}
+
+.death-box {
+  text-align: center;
+  animation: deathSlideIn 0.8s ease-out;
+}
+@keyframes deathSlideIn {
+  from { opacity: 0; transform: scale(0.8) translateY(30px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.death-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 64px; font-weight: 900;
+  color: #ff2222;
+  text-shadow: 0 0 40px rgba(255,0,0,0.8), 0 0 80px rgba(255,0,0,0.4);
+  margin-bottom: 40px;
+  letter-spacing: 8px;
+}
+
+.death-stats {
+  display: flex; gap: 40px; justify-content: center;
+  margin-bottom: 50px;
+}
+.death-stat {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.death-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px; font-weight: 700;
+  color: #666; letter-spacing: 2px;
+}
+.death-value {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 36px; font-weight: 900;
+  color: #fff;
+  text-shadow: 0 0 10px rgba(255,255,255,0.3);
+}
+
+#death-restart {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 20px; font-weight: 900;
+  color: #fff; letter-spacing: 3px;
+  background: rgba(255,50,50,0.2);
+  border: 2px solid rgba(255,50,50,0.5);
+  border-radius: 8px;
+  padding: 14px 50px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+#death-restart:hover {
+  background: rgba(255,50,50,0.4);
+  border-color: #ff4444;
+  transform: scale(1.05);
+}
+
+@media (max-width: 768px) {
+  .death-title { font-size: 36px; letter-spacing: 4px; }
+  .death-stats { gap: 20px; }
+  .death-value { font-size: 24px; }
+  .death-label { font-size: 11px; }
+  #death-restart { font-size: 16px; padding: 10px 30px; }
 }

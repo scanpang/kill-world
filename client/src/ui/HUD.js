@@ -19,7 +19,6 @@ export class HUD {
     this.shopCoinsEl = document.getElementById('shop-coins');
     this.levelEl = document.getElementById('player-level');
     this.xpFillEl = document.getElementById('xp-fill');
-    this.shieldBarEl = document.getElementById('shield-fill');
     this.shopOpen = false;
     this.game = null;
 
@@ -130,48 +129,19 @@ export class HUD {
 
     this.game.player.coins -= shopItem.price;
 
-    switch (itemId) {
-      case 'HealthPack':
-        this.game.player.health = Math.min(
-          this.game.player.health + 50,
-          this.game.player.maxHealth
-        );
-        break;
-      case 'Grenade':
-        this.game.weapons.slots[3] = 'Grenade';
-        this.game.weapons.slotAmmo['Grenade'] = 1; // fresh grenade
-        this.game.weapons.switchSlot(3);
-        break;
-      case 'Armor':
-        this.game.player.armor = Math.min(this.game.player.armor + 0.3, 0.6);
-        break;
-      case 'SpeedBoost':
-        this.game.player.speedBonus = Math.min(this.game.player.speedBonus + 0.2, 0.6);
-        break;
-      case 'MaxHPUp':
-        this.game.player.maxHealth += 25;
-        this.game.player.health += 25;
-        break;
-      case 'AmmoBox':
-        this.game.weapons.currentAmmo = this.game.weapons.maxAmmo;
-        this.game.weapons.slotAmmo[this.game.weapons.currentWeaponId] = this.game.weapons.currentAmmo;
-        if (this.game.weapons.reloadTimer) {
-          clearTimeout(this.game.weapons.reloadTimer);
-          this.game.weapons.reloadTimer = null;
-        }
-        this.game.weapons.isReloading = false;
-        break;
-      case 'Shield':
-        this.game.player.shield += 50;
-        break;
-      default: {
-        const weaponConfig = WEAPONS[itemId];
-        if (weaponConfig) {
-          this.game.weapons.slots[3] = itemId;
-          this.game.weapons.slotAmmo[itemId] = weaponConfig.maxAmmo; // fresh ammo
-          this.game.weapons.switchSlot(3);
-        }
-        break;
+    if (itemId === 'HealthPack') {
+      this.game.player.health = Math.min(
+        this.game.player.health + 50,
+        this.game.player.maxHealth
+      );
+    } else {
+      // It's a weapon - place in correct slot
+      const weaponConfig = WEAPONS[itemId];
+      if (weaponConfig) {
+        const slot = shopItem.slot !== undefined ? shopItem.slot : weaponConfig.slot;
+        this.game.weapons.slots[slot] = itemId;
+        this.game.weapons.slotAmmo[itemId] = weaponConfig.maxAmmo;
+        this.game.weapons.switchSlot(slot);
       }
     }
 
@@ -205,7 +175,7 @@ export class HUD {
   }
 
   update({ health, maxHealth, ammo, maxAmmo, playerCount, coins, weaponName,
-           currentSlot, isReloading, weaponId, level, xp, xpToNext, shield }) {
+           currentSlot, isReloading, weaponId, level, xp, xpToNext, damageBonus }) {
     const pct = (health / maxHealth) * 100;
     this.healthFill.style.width = pct + '%';
     if (pct > 50) {
@@ -214,16 +184,6 @@ export class HUD {
       this.healthFill.style.background = 'linear-gradient(90deg, #ffa000, #ffca28)';
     } else {
       this.healthFill.style.background = 'linear-gradient(90deg, #d32f2f, #ff5252)';
-    }
-
-    // Shield bar
-    if (this.shieldBarEl) {
-      if (shield > 0) {
-        this.shieldBarEl.parentElement.style.display = '';
-        this.shieldBarEl.style.width = Math.min(shield, 100) + '%';
-      } else {
-        this.shieldBarEl.parentElement.style.display = 'none';
-      }
     }
 
     if (ammo === Infinity) {
@@ -240,7 +200,11 @@ export class HUD {
     if (this.weaponName) this.weaponName.textContent = weaponName;
 
     // Level & XP
-    if (this.levelEl) this.levelEl.textContent = `Lv.${level}`;
+    if (this.levelEl) {
+      let levelText = `Lv.${level}`;
+      if (damageBonus > 0) levelText += ` (+${damageBonus}%)`;
+      this.levelEl.textContent = levelText;
+    }
     if (this.xpFillEl && xpToNext > 0) {
       this.xpFillEl.style.width = ((xp / xpToNext) * 100) + '%';
     }
@@ -255,6 +219,9 @@ export class HUD {
       const slots = this.weaponSlots.children;
       for (let i = 0; i < slots.length; i++) {
         slots[i].classList.toggle('active', i === currentSlot);
+        // Dim empty slots
+        const hasWeapon = this.game && this.game.weapons.slots[i];
+        slots[i].classList.toggle('empty-slot', !hasWeapon);
       }
     }
 
