@@ -20,6 +20,12 @@ export class Player {
     this.isGrounded = false;
     this.isSprinting = false;
 
+    // Mobile joystick input (-1 to 1)
+    this.mobileMove = { x: 0, y: 0 };
+
+    // Coins
+    this.coins = 0;
+
     this.setupInput();
   }
 
@@ -56,41 +62,40 @@ export class Player {
 
     const speed = this.isSprinting ? PLAYER.SPRINT_SPEED : PLAYER.SPEED;
 
-    // Movement direction
     const forward = new THREE.Vector3(
-      -Math.sin(this.rotation.y),
-      0,
-      -Math.cos(this.rotation.y)
+      -Math.sin(this.rotation.y), 0, -Math.cos(this.rotation.y)
     );
     const right = new THREE.Vector3(
-      Math.cos(this.rotation.y),
-      0,
-      -Math.sin(this.rotation.y)
+      Math.cos(this.rotation.y), 0, -Math.sin(this.rotation.y)
     );
 
     const moveDir = new THREE.Vector3();
+
+    // Keyboard input
     if (this.keys['KeyW']) moveDir.add(forward);
     if (this.keys['KeyS']) moveDir.sub(forward);
     if (this.keys['KeyA']) moveDir.sub(right);
     if (this.keys['KeyD']) moveDir.add(right);
 
+    // Mobile joystick input (additive, analog)
+    if (Math.abs(this.mobileMove.x) > 0.1 || Math.abs(this.mobileMove.y) > 0.1) {
+      moveDir.addScaledVector(right, this.mobileMove.x);
+      moveDir.addScaledVector(forward, -this.mobileMove.y);
+    }
+
     if (moveDir.length() > 0) moveDir.normalize();
 
-    // Apply horizontal movement directly
     this.position.x += moveDir.x * speed * delta;
     this.position.z += moveDir.z * speed * delta;
 
     // Gravity & jump
     this.isGrounded = this.position.y <= PLAYER.HEIGHT;
-
     if (this.keys['Space'] && this.isGrounded) {
       this.velocityY = PLAYER.JUMP_FORCE;
     }
-
     this.velocityY += GAME.GRAVITY * delta;
     this.position.y += this.velocityY * delta;
 
-    // Floor clamp
     if (this.position.y < PLAYER.HEIGHT) {
       this.position.y = PLAYER.HEIGHT;
       this.velocityY = 0;
@@ -116,11 +121,13 @@ export class Player {
     return this.rotation.y;
   }
 
+  addCoins(amount) {
+    this.coins += amount;
+  }
+
   takeDamage(amount) {
     this.health = Math.max(0, this.health - amount);
-    if (this.health <= 0) {
-      this.die();
-    }
+    if (this.health <= 0) this.die();
   }
 
   die() {
@@ -131,11 +138,7 @@ export class Player {
   respawn() {
     this.health = PLAYER.MAX_HEALTH;
     this.isDead = false;
-    this.position.set(
-      (Math.random() - 0.5) * 60,
-      PLAYER.HEIGHT,
-      (Math.random() - 0.5) * 60
-    );
+    this.position.set((Math.random() - 0.5) * 60, PLAYER.HEIGHT, (Math.random() - 0.5) * 60);
     this.velocityY = 0;
   }
 }

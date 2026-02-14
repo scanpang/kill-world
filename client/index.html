@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>KILL WORLD</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
@@ -29,10 +29,27 @@
     <span id="health-text">HP</span>
     <div id="health-bar"><div id="health-fill"></div></div>
 
+    <!-- Coins -->
+    <div id="coin-container">
+      <span id="coin-icon">$</span>
+      <span id="coin-display">0</span>
+    </div>
+
+    <!-- Weapon Info -->
+    <div id="weapon-info">
+      <div id="weapon-name">기관총</div>
+      <div id="weapon-slots">
+        <div class="slot active">1</div>
+        <div class="slot">2</div>
+        <div class="slot">3</div>
+        <div class="slot">4</div>
+      </div>
+    </div>
+
     <!-- Ammo -->
     <div id="ammo-display">
-      <div id="ammo-current">30</div>
-      <div id="ammo-max">/ 30</div>
+      <div id="ammo-current">40</div>
+      <div id="ammo-max">/ 40</div>
     </div>
 
     <!-- Minimap -->
@@ -47,10 +64,35 @@
     <div id="player-count">PLAYERS: 1</div>
   </div>
 
+  <!-- Shop Panel -->
+  <div id="shop-panel">
+    <h3>SHOP <span id="shop-close">[X]</span></h3>
+    <div class="shop-item" data-id="Shotgun">
+      <span class="shop-name">샷건</span>
+      <span class="shop-desc">근거리 강력 산탄</span>
+      <span class="shop-price">$300</span>
+    </div>
+    <div class="shop-item" data-id="Sniper">
+      <span class="shop-name">스나이퍼</span>
+      <span class="shop-desc">원거리 고데미지</span>
+      <span class="shop-price">$500</span>
+    </div>
+    <div class="shop-item" data-id="Grenade">
+      <span class="shop-name">수류탄 x3</span>
+      <span class="shop-desc">범위 폭발 데미지</span>
+      <span class="shop-price">$100</span>
+    </div>
+    <div class="shop-item" data-id="HealthPack">
+      <span class="shop-name">회복팩</span>
+      <span class="shop-desc">HP 50 회복</span>
+      <span class="shop-price">$50</span>
+    </div>
+  </div>
+
   <!-- Pause overlay -->
   <div id="overlay" class="active">
     <div class="pause-box">
-      <h2>PAUSED</h2>
+      <h2>KILL WORLD</h2>
       <div class="controls-list">
         <div><span class="key">W A S D</span> Move</div>
         <div><span class="key">Shift</span> Sprint</div>
@@ -58,7 +100,8 @@
         <div><span class="key">Mouse</span> Look</div>
         <div><span class="key">Left Click</span> Shoot</div>
         <div><span class="key">R</span> Reload</div>
-        <div><span class="key">1 2 3</span> Switch Weapon</div>
+        <div><span class="key">1 2 3 4</span> Switch Weapon</div>
+        <div><span class="key">B</span> Shop</div>
         <div><span class="key">ESC</span> Pause</div>
       </div>
       <p class="resume-text">CLICK TO PLAY</p>
@@ -74,6 +117,7 @@
     <button id="btn-shoot">FIRE</button>
     <button id="btn-jump">JUMP</button>
     <button id="btn-reload">R</button>
+    <button id="btn-shop">SHOP</button>
   </div>
 
   <script type="module" src="/src/main.js"></script>

@@ -1,5 +1,6 @@
 // client/src/game/Game.js
 import * as THREE from 'three';
+import { NPC as NPC_CONST } from '../../../shared/constants.js';
 import { SceneManager } from './SceneManager.js';
 import { Player } from './Player.js';
 import { MapBuilder } from './MapBuilder.js';
@@ -32,6 +33,7 @@ export class Game {
 
     // Connect systems
     this.weapons.game = this;
+    this.hud.game = this;
 
     // NPC attack → player damage
     window.__onNPCAttack = (damage) => {
@@ -47,108 +49,76 @@ export class Game {
 
   start() {
     this.isRunning = true;
-
-    // Build the map
     this.map.build();
-
-    // Initialize player
     this.player.init();
-
-    // Spawn NPCs
     this.npcManager.spawnInitialNPCs();
-
-    // Init mobile controls
     this.mobileControls.init();
-
-    // Connect to server
     this.network.connect();
-
-    // Start game loop
     this.loop();
   }
 
-  pause() {
-    // Don't stop the loop, just flag paused
+  onNPCKill(npcIndex) {
+    this.player.addCoins(NPC_CONST.COIN_DROP);
+    this.hud.showCoinPopup(NPC_CONST.COIN_DROP);
+    this.hud.addKillFeedEntry('You', `Zombie_${npcIndex + 1}`);
   }
+
+  pause() {}
 
   loop() {
     if (!this.isRunning) return;
     requestAnimationFrame(() => this.loop());
 
     const delta = this.clock.getDelta();
-    const elapsed = this.clock.getElapsedTime();
 
-    // Update physics
-    this.physics.update(delta);
-
-    // Update mobile controls (before player update)
     this.mobileControls.update();
-
-    // Update player
+    this.physics.update(delta);
     this.player.update(delta);
-
-    // Update weapons
     this.weapons.update(delta);
-
-    // Update NPCs
     this.npcManager.update(delta, this.player.getPosition());
-
-    // Update remote players
     this.updateRemotePlayers(delta);
 
-    // Update minimap
     this.minimap.update(
       this.player.getPosition(),
       this.player.getRotationY(),
       this.getEntities()
     );
 
-    // Update HUD
     this.hud.update({
       health: this.player.health,
       maxHealth: this.player.maxHealth,
       ammo: this.weapons.currentAmmo,
       maxAmmo: this.weapons.maxAmmo,
       playerCount: this.remotePlayers.size + 1,
+      coins: this.player.coins,
+      weaponName: this.weapons.config.name,
+      currentSlot: this.weapons.currentSlot,
+      isReloading: this.weapons.isReloading,
     });
 
-    // Send position to server
     this.network.sendPosition(
       this.player.getPosition(),
       this.player.getRotationY()
     );
 
-    // Render
     this.scene.render();
   }
 
   getEntities() {
     const entities = [];
-
-    // Remote players
     for (const [id, rp] of this.remotePlayers) {
-      entities.push({
-        type: 'player',
-        position: rp.mesh.position,
-      });
+      entities.push({ type: 'player', position: rp.mesh.position });
     }
-
-    // NPCs
     for (const npc of this.npcManager.npcs) {
       if (npc.alive) {
-        entities.push({
-          type: 'npc',
-          position: npc.mesh.position,
-        });
+        entities.push({ type: 'npc', position: npc.mesh.position });
       }
     }
-
     return entities;
   }
 
   updateRemotePlayers(delta) {
     for (const [id, rp] of this.remotePlayers) {
-      // Interpolate to target position
       if (rp.targetPosition) {
         rp.mesh.position.lerp(rp.targetPosition, 0.15);
       }
@@ -160,16 +130,10 @@ export class Game {
 
   addRemotePlayer(id, data) {
     if (this.remotePlayers.has(id)) return;
-
     const mesh = this.createBlockCharacter(data.color || 0xe74c3c);
-    mesh.position.set(data.x || 0, data.y || 2, data.z || 0);
+    mesh.position.set(data.x || 0, 0, data.z || 0);
     this.scene.add(mesh);
-
-    this.remotePlayers.set(id, {
-      mesh,
-      targetPosition: null,
-      targetRotationY: 0,
-    });
+    this.remotePlayers.set(id, { mesh, targetPosition: null, targetRotationY: 0 });
   }
 
   removeRemotePlayer(id) {
@@ -183,14 +147,13 @@ export class Game {
   updateRemotePlayerPosition(id, data) {
     const rp = this.remotePlayers.get(id);
     if (rp) {
-      rp.targetPosition = new THREE.Vector3(data.x, data.y, data.z);
+      rp.targetPosition = new THREE.Vector3(data.x, 0, data.z);
       rp.targetRotationY = data.ry || 0;
     }
   }
 
   createBlockCharacter(bodyColor = 0xe74c3c) {
     const group = new THREE.Group();
-
     const mat = (color) => new THREE.MeshStandardMaterial({ color });
 
     // Head
@@ -227,7 +190,13 @@ export class Game {
     const rightLeg = new THREE.Mesh(legGeo, legMat);
     rightLeg.position.set(0.35, 0.7, 0);
 
-    group.add(head, leftEye, rightEye, body, leftArm, rightArm, leftLeg, rightLeg);
+    // Gun in hand
+    const gunBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.5), mat(0x222222));
+    gunBarrel.position.set(0.95, 2.0, -0.4);
+    const gunBody = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.15, 0.25), mat(0x444444));
+    gunBody.position.set(0.95, 1.95, -0.1);
+
+    group.add(head, leftEye, rightEye, body, leftArm, rightArm, leftLeg, rightLeg, gunBarrel, gunBody);
     return group;
   }
 }

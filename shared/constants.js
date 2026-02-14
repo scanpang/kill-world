@@ -1,9 +1,8 @@
 // shared/constants.js
-// 서버와 클라이언트 양쪽에서 사용하는 공통 상수
 
 export const GAME = {
-  TICK_RATE: 20,           // 서버 틱레이트 (초당)
-  MAP_SIZE: 200,           // 맵 한 변 크기
+  TICK_RATE: 20,
+  MAP_SIZE: 200,
   GRAVITY: -20,
 };
 
@@ -12,22 +11,64 @@ export const PLAYER = {
   SPRINT_SPEED: 24,
   JUMP_FORCE: 10,
   MAX_HEALTH: 100,
-  HEIGHT: 4,               // 로블록스 캐릭터 높이
+  HEIGHT: 4,
   RADIUS: 0.7,
-  RESPAWN_TIME: 3,         // 초
+  RESPAWN_TIME: 3,
 };
 
 export const WEAPONS = {
-  AssaultRifle: {
-    name: '돌격소총',
-    damage: 18,
+  MachineGun: {
+    name: '기관총',
+    damage: 15,
     headshotMul: 2.0,
-    fireRate: 100,          // ms
-    maxAmmo: 30,
-    reloadTime: 2000,       // ms
-    spread: 0.02,
-    range: 300,
+    fireRate: 100,
+    maxAmmo: 40,
+    reloadTime: 2500,
+    spread: 0.03,
+    range: 200,
     auto: true,
+    price: 0,
+    type: 'gun',
+  },
+  Pistol: {
+    name: '권총',
+    damage: 25,
+    headshotMul: 2.5,
+    fireRate: 300,
+    maxAmmo: 12,
+    reloadTime: 1500,
+    spread: 0.01,
+    range: 150,
+    auto: false,
+    price: 0,
+    type: 'gun',
+  },
+  Melee: {
+    name: '근접무기',
+    damage: 50,
+    headshotMul: 1.5,
+    fireRate: 600,
+    maxAmmo: Infinity,
+    reloadTime: 0,
+    spread: 0,
+    range: 4,
+    auto: false,
+    price: 0,
+    type: 'melee',
+  },
+  Grenade: {
+    name: '수류탄',
+    damage: 120,
+    headshotMul: 1.0,
+    fireRate: 1500,
+    maxAmmo: 3,
+    reloadTime: 0,
+    spread: 0,
+    range: 30,
+    auto: false,
+    price: 100,
+    type: 'grenade',
+    blastRadius: 8,
   },
   Shotgun: {
     name: '샷건',
@@ -40,10 +81,12 @@ export const WEAPONS = {
     range: 50,
     pellets: 8,
     auto: false,
+    price: 300,
+    type: 'gun',
   },
   Sniper: {
     name: '스나이퍼',
-    damage: 75,
+    damage: 90,
     headshotMul: 3.0,
     fireRate: 1500,
     maxAmmo: 5,
@@ -51,8 +94,19 @@ export const WEAPONS = {
     spread: 0.001,
     range: 1000,
     auto: false,
+    price: 500,
+    type: 'gun',
   },
 };
+
+export const WEAPON_SLOTS = ['MachineGun', 'Pistol', 'Melee', 'Grenade'];
+
+export const SHOP_ITEMS = [
+  { id: 'Shotgun', name: '샷건', price: 300, desc: '근거리 강력 산탄' },
+  { id: 'Sniper', name: '스나이퍼', price: 500, desc: '원거리 고데미지' },
+  { id: 'Grenade', name: '수류탄 x3', price: 100, desc: '범위 폭발 데미지' },
+  { id: 'HealthPack', name: '회복팩', price: 50, desc: 'HP 50 회복' },
+];
 
 export const NPC = {
   SPEED: 4,
@@ -62,6 +116,7 @@ export const NPC = {
   DETECT_RANGE: 30,
   RESPAWN_TIME: 10,
   PATROL_RADIUS: 15,
+  COIN_DROP: 25,
 };
 
 export const EVENTS = {

@@ -7,8 +7,6 @@ export class MobileControls {
     this.enabled = false;
 
     // Joystick state
-    this.moveX = 0;
-    this.moveY = 0;
     this.joystickActive = false;
     this.joystickTouchId = null;
     this.joystickOrigin = { x: 0, y: 0 };
@@ -16,20 +14,13 @@ export class MobileControls {
     // Look state
     this.lookTouchId = null;
     this.lastLookPos = { x: 0, y: 0 };
-
-    // Shoot state
-    this.shootInterval = null;
   }
 
   init() {
     if (!this.isMobile()) return;
     this.enabled = true;
 
-    // Show mobile UI
     document.getElementById('mobile-controls').style.display = 'block';
-
-    // Hide desktop-only elements
-    document.querySelector('.crosshair').style.display = 'block';
 
     this.setupJoystick();
     this.setupLook();
@@ -75,8 +66,12 @@ export class MobileControls {
           dy = (dy / dist) * maxDist;
         }
 
-        this.moveX = dx / maxDist;
-        this.moveY = dy / maxDist;
+        // Set analog input directly on player
+        this.player.mobileMove.x = dx / maxDist;
+        this.player.mobileMove.y = dy / maxDist;
+
+        // Sprint when pushed to edge
+        this.player.isSprinting = (dist / maxDist) > 0.85;
 
         stick.style.left = (this.joystickOrigin.x + dx - 20) + 'px';
         stick.style.top = (this.joystickOrigin.y + dy - 20) + 'px';
@@ -88,14 +83,12 @@ export class MobileControls {
         if (touch.identifier !== this.joystickTouchId) continue;
         this.joystickActive = false;
         this.joystickTouchId = null;
-        this.moveX = 0;
-        this.moveY = 0;
-        // Clear movement keys
-        this.player.keys['KeyW'] = false;
-        this.player.keys['KeyS'] = false;
-        this.player.keys['KeyA'] = false;
-        this.player.keys['KeyD'] = false;
+
+        // Clear mobile input
+        this.player.mobileMove.x = 0;
+        this.player.mobileMove.y = 0;
         this.player.isSprinting = false;
+
         base.style.opacity = '0.3';
         stick.style.opacity = '0.3';
         stick.style.left = base.style.left ? (parseInt(base.style.left) + 40) + 'px' : '60px';
@@ -146,21 +139,17 @@ export class MobileControls {
   }
 
   setupButtons() {
-    // Shoot button
     const shootBtn = document.getElementById('btn-shoot');
     shootBtn.addEventListener('touchstart', (e) => {
       e.preventDefault();
       this.weapons.isShooting = true;
-      if (!this.weapons.config.auto) {
-        this.weapons.shoot();
-      }
+      if (!this.weapons.config.auto) this.weapons.shoot();
     }, { passive: false });
     shootBtn.addEventListener('touchend', (e) => {
       e.preventDefault();
       this.weapons.isShooting = false;
     });
 
-    // Jump button
     const jumpBtn = document.getElementById('btn-jump');
     jumpBtn.addEventListener('touchstart', (e) => {
       e.preventDefault();
@@ -171,7 +160,6 @@ export class MobileControls {
       this.player.keys['Space'] = false;
     });
 
-    // Reload button
     const reloadBtn = document.getElementById('btn-reload');
     reloadBtn.addEventListener('touchstart', (e) => {
       e.preventDefault();
@@ -180,16 +168,6 @@ export class MobileControls {
   }
 
   update() {
-    if (!this.enabled || !this.joystickActive) return;
-
-    // Convert joystick input to WASD-like keys
-    this.player.keys['KeyW'] = this.moveY < -0.2;
-    this.player.keys['KeyS'] = this.moveY > 0.2;
-    this.player.keys['KeyA'] = this.moveX < -0.2;
-    this.player.keys['KeyD'] = this.moveX > 0.2;
-
-    // Sprint if joystick pushed to edge
-    const dist = Math.sqrt(this.moveX * this.moveX + this.moveY * this.moveY);
-    this.player.isSprinting = dist > 0.85;
+    // No per-frame update needed - all input handled via touch events
   }
 }

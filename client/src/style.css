@@ -12,8 +12,7 @@ canvas { display: block; }
 
 /* Crosshair */
 .crosshair {
-  position: absolute;
-  top: 50%; left: 50%;
+  position: absolute; top: 50%; left: 50%;
   transform: translate(-50%, -50%);
 }
 .crosshair .line {
@@ -31,19 +30,69 @@ canvas { display: block; }
   position: absolute; bottom: 30px; left: 30px;
   width: 250px; height: 8px;
   background: rgba(255,255,255,0.1);
-  border-radius: 4px;
-  overflow: hidden;
+  border-radius: 4px; overflow: hidden;
 }
 #health-fill {
   width: 100%; height: 100%;
   background: linear-gradient(90deg, #00e676, #69f0ae);
-  border-radius: 4px;
-  transition: width 0.3s ease;
+  border-radius: 4px; transition: width 0.3s ease;
 }
 #health-text {
   position: absolute; bottom: 42px; left: 30px;
+  color: #aaa; font-size: 13px; font-weight: 600; letter-spacing: 2px;
+}
+
+/* Coins */
+#coin-container {
+  position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(0,0,0,0.5); padding: 4px 14px;
+  border-radius: 20px; border: 1px solid rgba(255,200,0,0.3);
+}
+#coin-icon {
+  color: #ffd700; font-family: 'Orbitron', sans-serif;
+  font-size: 18px; font-weight: 900;
+}
+#coin-display {
+  color: #fff; font-family: 'Orbitron', sans-serif;
+  font-size: 18px; font-weight: 700;
+}
+
+/* Coin popup */
+.coin-popup {
+  position: absolute; top: 45%; left: 52%;
+  color: #ffd700; font-family: 'Orbitron', sans-serif;
+  font-size: 22px; font-weight: 900;
+  animation: coinFloat 1.2s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes coinFloat {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-60px); }
+}
+
+/* Weapon Info */
+#weapon-info {
+  position: absolute; bottom: 55px; right: 30px;
+  text-align: right;
+}
+#weapon-name {
   color: #aaa; font-size: 13px; font-weight: 600;
-  letter-spacing: 2px;
+  letter-spacing: 1px; margin-bottom: 4px;
+}
+#weapon-slots {
+  display: flex; gap: 4px; justify-content: flex-end;
+}
+#weapon-slots .slot {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Orbitron', sans-serif; font-size: 12px; font-weight: 700;
+  color: #666; border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 4px; background: rgba(0,0,0,0.3);
+}
+#weapon-slots .slot.active {
+  color: #fff; border-color: #ff6b35;
+  background: rgba(255,107,53,0.2);
 }
 
 /* Ammo */
@@ -53,27 +102,18 @@ canvas { display: block; }
 }
 #ammo-current {
   font-family: 'Orbitron', sans-serif;
-  font-size: 42px; font-weight: 900;
-  color: #fff;
-  line-height: 1;
+  font-size: 42px; font-weight: 900; color: #fff; line-height: 1;
 }
-#ammo-max {
-  font-size: 16px; color: #666;
-  font-weight: 600;
-}
+#ammo-max { font-size: 16px; color: #666; font-weight: 600; }
 
 /* Minimap */
 #minimap {
   position: absolute; top: 16px; right: 16px;
   width: 180px; height: 180px;
   border: 2px solid rgba(255,255,255,0.15);
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.6);
-  overflow: hidden;
+  border-radius: 8px; background: rgba(0,0,0,0.6); overflow: hidden;
 }
-#minimap canvas {
-  width: 100%; height: 100%;
-}
+#minimap canvas { width: 100%; height: 100%; }
 
 /* Kill Feed */
 #kill-feed {
@@ -81,11 +121,8 @@ canvas { display: block; }
   display: flex; flex-direction: column; gap: 4px;
 }
 .kill-entry {
-  background: rgba(0,0,0,0.6);
-  padding: 4px 10px;
-  border-radius: 4px;
-  font-size: 13px;
-  color: #ccc;
+  background: rgba(0,0,0,0.6); padding: 4px 10px;
+  border-radius: 4px; font-size: 13px; color: #ccc;
   animation: fadeIn 0.3s ease;
 }
 .kill-entry .killer { color: #ff6b35; font-weight: 700; }
@@ -94,22 +131,16 @@ canvas { display: block; }
 /* Player Count */
 #player-count {
   position: absolute; top: 200px; right: 20px;
-  color: #666; font-size: 12px;
-  letter-spacing: 1px;
+  color: #666; font-size: 12px; letter-spacing: 1px;
 }
 
 /* Hit Marker */
 #hit-marker {
   position: absolute; top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  opacity: 0;
-  transition: opacity 0.1s;
+  transform: translate(-50%, -50%); opacity: 0; transition: opacity 0.1s;
 }
 #hit-marker.show { opacity: 1; }
-#hit-marker .hm {
-  position: absolute;
-  background: #fff;
-}
+#hit-marker .hm { position: absolute; background: #fff; }
 #hit-marker .hm:nth-child(1) { width: 2px; height: 10px; left: -1px; top: -14px; transform: rotate(45deg); }
 #hit-marker .hm:nth-child(2) { width: 2px; height: 10px; left: -1px; top: 4px; transform: rotate(45deg); }
 #hit-marker .hm:nth-child(3) { width: 2px; height: 10px; left: -1px; top: -14px; transform: rotate(-45deg); }
@@ -117,53 +148,81 @@ canvas { display: block; }
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; } }
 
-/* Pause Overlay */
+/* ─── Shop Panel ─── */
+#shop-panel {
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 320px; z-index: 300;
+  background: rgba(10,10,15,0.95);
+  border: 2px solid rgba(255,107,53,0.4);
+  border-radius: 12px; padding: 16px;
+  display: none;
+}
+#shop-panel.active { display: block; }
+#shop-panel h3 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 18px; color: #ff6b35;
+  margin-bottom: 12px; display: flex;
+  justify-content: space-between; align-items: center;
+}
+#shop-close {
+  cursor: pointer; font-size: 14px; color: #888;
+}
+#shop-close:hover { color: #fff; }
+.shop-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px; margin-bottom: 6px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px; cursor: pointer;
+  transition: all 0.15s; pointer-events: auto;
+}
+.shop-item:hover {
+  background: rgba(255,107,53,0.15);
+  border-color: rgba(255,107,53,0.4);
+}
+.shop-name {
+  font-weight: 700; color: #fff; min-width: 80px;
+}
+.shop-desc {
+  color: #888; font-size: 12px; flex: 1;
+}
+.shop-price {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px; color: #ffd700; font-weight: 700;
+}
+
+/* ─── Pause Overlay ─── */
 #overlay {
   position: fixed; inset: 0; z-index: 200;
-  background: rgba(0, 0, 0, 0.6);
-  display: none;
-  align-items: center;
-  justify-content: center;
+  background: rgba(0,0,0,0.6);
+  display: none; align-items: center; justify-content: center;
   cursor: pointer;
 }
 #overlay.active { display: flex; }
-.pause-box {
-  text-align: center;
-}
+.pause-box { text-align: center; }
 .pause-box h2 {
   font-family: 'Orbitron', sans-serif;
-  font-size: 36px;
-  font-weight: 900;
-  color: #ff6b35;
-  margin-bottom: 24px;
+  font-size: 36px; font-weight: 900;
+  color: #ff6b35; margin-bottom: 24px;
 }
 .controls-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 30px;
-  font-size: 16px;
-  color: #ccc;
+  display: flex; flex-direction: column; gap: 8px;
+  margin-bottom: 30px; font-size: 16px; color: #ccc;
 }
 .controls-list .key {
-  display: inline-block;
-  min-width: 100px;
-  text-align: right;
-  margin-right: 12px;
+  display: inline-block; min-width: 100px;
+  text-align: right; margin-right: 12px;
   font-family: 'Orbitron', sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  color: #fff;
+  font-size: 13px; font-weight: 700; color: #fff;
   background: rgba(255,255,255,0.1);
-  padding: 3px 8px;
-  border-radius: 4px;
+  padding: 3px 8px; border-radius: 4px;
   border: 1px solid rgba(255,255,255,0.2);
 }
 .resume-text {
   font-family: 'Orbitron', sans-serif;
-  font-size: 18px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.7);
+  font-size: 18px; font-weight: 700;
+  color: rgba(255,255,255,0.7);
   animation: pulse 2s ease-in-out infinite;
 }
 @keyframes pulse {
@@ -176,98 +235,66 @@ canvas { display: block; }
   position: fixed; inset: 0; z-index: 150;
   pointer-events: none;
 }
-#mobile-controls > * {
-  pointer-events: auto;
-}
+#mobile-controls > * { pointer-events: auto; }
 
-/* Joystick */
 #joystick-zone {
-  position: absolute;
-  left: 0; bottom: 0;
-  width: 45vw; height: 50vh;
-  touch-action: none;
+  position: absolute; left: 0; bottom: 0;
+  width: 45vw; height: 50vh; touch-action: none;
 }
 #joystick-base {
-  position: absolute;
-  left: 20px; bottom: 60px;
-  width: 120px; height: 120px;
-  border-radius: 50%;
+  position: absolute; left: 20px; bottom: 60px;
+  width: 120px; height: 120px; border-radius: 50%;
   border: 3px solid rgba(255,255,255,0.3);
   background: rgba(255,255,255,0.05);
-  opacity: 0.3;
-  pointer-events: none;
+  opacity: 0.3; pointer-events: none;
 }
 #joystick-stick {
-  position: absolute;
-  left: 60px; bottom: 100px;
-  width: 40px; height: 40px;
-  border-radius: 50%;
+  position: absolute; left: 60px; bottom: 100px;
+  width: 40px; height: 40px; border-radius: 50%;
   background: rgba(255,255,255,0.5);
-  opacity: 0.3;
-  pointer-events: none;
+  opacity: 0.3; pointer-events: none;
 }
-
-/* Look zone */
 #look-zone {
-  position: absolute;
-  right: 0; top: 0;
-  width: 55vw; height: 60vh;
-  touch-action: none;
+  position: absolute; right: 0; top: 0;
+  width: 55vw; height: 60vh; touch-action: none;
 }
-
-/* Action buttons */
 #btn-shoot {
-  position: absolute;
-  right: 24px; bottom: 80px;
-  width: 80px; height: 80px;
-  border-radius: 50%;
-  border: 3px solid rgba(255, 50, 50, 0.6);
-  background: rgba(255, 50, 50, 0.2);
-  color: #fff;
-  font-family: 'Orbitron', sans-serif;
-  font-size: 14px;
-  font-weight: 900;
-  touch-action: none;
+  position: absolute; right: 24px; bottom: 80px;
+  width: 80px; height: 80px; border-radius: 50%;
+  border: 3px solid rgba(255,50,50,0.6);
+  background: rgba(255,50,50,0.2);
+  color: #fff; font-family: 'Orbitron', sans-serif;
+  font-size: 14px; font-weight: 900; touch-action: none;
 }
-#btn-shoot:active {
-  background: rgba(255, 50, 50, 0.5);
-}
-
+#btn-shoot:active { background: rgba(255,50,50,0.5); }
 #btn-jump {
-  position: absolute;
-  right: 120px; bottom: 40px;
-  width: 60px; height: 60px;
-  border-radius: 50%;
-  border: 3px solid rgba(100, 200, 255, 0.5);
-  background: rgba(100, 200, 255, 0.15);
-  color: #fff;
-  font-family: 'Orbitron', sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  touch-action: none;
+  position: absolute; right: 120px; bottom: 40px;
+  width: 60px; height: 60px; border-radius: 50%;
+  border: 3px solid rgba(100,200,255,0.5);
+  background: rgba(100,200,255,0.15);
+  color: #fff; font-family: 'Orbitron', sans-serif;
+  font-size: 11px; font-weight: 700; touch-action: none;
 }
-#btn-jump:active {
-  background: rgba(100, 200, 255, 0.4);
-}
-
+#btn-jump:active { background: rgba(100,200,255,0.4); }
 #btn-reload {
-  position: absolute;
-  right: 120px; bottom: 115px;
-  width: 44px; height: 44px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 200, 0, 0.5);
-  background: rgba(255, 200, 0, 0.15);
-  color: #fff;
-  font-family: 'Orbitron', sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  touch-action: none;
+  position: absolute; right: 120px; bottom: 115px;
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 2px solid rgba(255,200,0,0.5);
+  background: rgba(255,200,0,0.15);
+  color: #fff; font-family: 'Orbitron', sans-serif;
+  font-size: 14px; font-weight: 700; touch-action: none;
 }
-#btn-reload:active {
-  background: rgba(255, 200, 0, 0.4);
+#btn-reload:active { background: rgba(255,200,0,0.4); }
+#btn-shop {
+  position: absolute; left: 16px; top: 50%;
+  width: 50px; height: 50px; border-radius: 50%;
+  border: 2px solid rgba(255,107,53,0.5);
+  background: rgba(255,107,53,0.15);
+  color: #fff; font-family: 'Orbitron', sans-serif;
+  font-size: 10px; font-weight: 700; touch-action: none;
 }
 
-/* Mobile HUD adjustments */
+/* ─── Mobile HUD ─── */
 @media (max-width: 768px) {
   #minimap { width: 100px; height: 100px; top: 8px; right: 8px; }
   #minimap canvas { width: 100px; height: 100px; }
@@ -276,7 +303,14 @@ canvas { display: block; }
   #ammo-display { bottom: 170px; right: 24px; }
   #ammo-current { font-size: 28px; }
   #ammo-max { font-size: 13px; }
+  #weapon-info { bottom: 200px; right: 24px; }
+  #weapon-name { font-size: 11px; }
+  #weapon-slots .slot { width: 22px; height: 22px; font-size: 10px; }
   #player-count { top: 115px; right: 12px; font-size: 10px; }
   #kill-feed { top: 8px; left: 8px; }
   .kill-entry { font-size: 11px; padding: 2px 6px; }
+  #coin-container { top: 8px; padding: 3px 10px; }
+  #coin-icon { font-size: 14px; }
+  #coin-display { font-size: 14px; }
+  #shop-panel { width: 280px; }
 }
