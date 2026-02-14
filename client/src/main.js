@@ -1,4 +1,5 @@
 // client/src/main.js
+import './style.css';
 import { Game } from './game/Game.js';
 
 document.getElementById('hud').classList.add('active');
