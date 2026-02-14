@@ -38,6 +38,11 @@ export class WeaponSystem {
     // Tracers & effects
     this.tracers = [];
 
+    // Shared materials (avoid creating new ones per shot)
+    this._tracerMat = new THREE.LineBasicMaterial({ color: 0xffcc00, transparent: true, opacity: 0.6 });
+    this._impactGeo = new THREE.SphereGeometry(0.1, 4, 4);
+    this._impactMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.8 });
+
     // Grenade projectiles in flight
     this.grenades = [];
 
@@ -479,12 +484,15 @@ export class WeaponSystem {
 
     const origin = this.camera.getWorldPosition(new THREE.Vector3());
 
-    // Geometric ray-sphere NPC hit test (no Three.js raycast dependency)
+    // Geometric ray-cylinder NPC hit test
+    // Separates horizontal (XZ) distance from vertical (Y) height check
     let hitNPC = null;
     let hitDist = this.config.range;
 
     if (this.game) {
       const npcManager = this.game.npcManager;
+      const dx = direction.x, dy = direction.y, dz = direction.z;
+
       for (let i = 0; i < npcManager.npcs.length; i++) {
         const npc = npcManager.npcs[i];
         if (!npc.alive) continue;
@@ -492,22 +500,36 @@ export class WeaponSystem {
         const cfg = NPC_TYPES[npc.type] || NPC_TYPES.normal;
         const npcPos = npc.mesh.position;
 
-        // NPC body center (approximate)
-        const centerY = npcPos.y + 1.8 * cfg.scale;
-        const npcCenter = new THREE.Vector3(npcPos.x, centerY, npcPos.z);
+        // XZ plane: find t where ray is closest to NPC horizontally
+        const ox = origin.x - npcPos.x;
+        const oz = origin.z - npcPos.z;
+        const denom = dx * dx + dz * dz;
+        if (denom < 0.0001) continue; // looking straight up/down
 
-        // Ray-sphere intersection
-        const toNPC = npcCenter.clone().sub(origin);
-        const proj = toNPC.dot(direction);
-        if (proj < 0 || proj > hitDist) continue; // behind camera or too far
+        const t = -(ox * dx + oz * dz) / denom;
+        if (t < 0 || t > hitDist) continue;
 
-        const closestPoint = origin.clone().addScaledVector(direction, proj);
-        const perpDist = closestPoint.distanceTo(npcCenter);
-        const hitRadius = 1.0 * cfg.scale; // generous hit sphere
+        // XZ perpendicular distance
+        const cxz = ox + dx * t;
+        const czz = oz + dz * t;
+        const perpXZ = Math.sqrt(cxz * cxz + czz * czz);
+        const hitRadius = 1.0 * cfg.scale;
+        if (perpXZ > hitRadius) continue;
 
-        if (perpDist < hitRadius && proj < hitDist) {
-          hitDist = proj;
-          hitNPC = { index: i, npc, cfg, hitPoint: closestPoint };
+        // Y check: ray height at t vs NPC height range
+        const hitY = origin.y + dy * t;
+        const npcTop = 3.8 * cfg.scale;
+        if (hitY < -0.5 || hitY > npcTop + 0.5) continue;
+
+        // Valid hit
+        if (t < hitDist) {
+          hitDist = t;
+          const hitPoint = new THREE.Vector3(
+            origin.x + dx * t,
+            origin.y + dy * t,
+            origin.z + dz * t
+          );
+          hitNPC = { index: i, npc, cfg, hitPoint };
         }
       }
     }
@@ -556,19 +578,15 @@ export class WeaponSystem {
   }
 
   createTracer(from, to) {
-    const geo = new THREE.BufferGeometry().setFromPoints([from.clone(), to.clone()]);
-    const mat = new THREE.LineBasicMaterial({ color: 0xffcc00, transparent: true, opacity: 0.6 });
-    const line = new THREE.Line(geo, mat);
+    const geo = new THREE.BufferGeometry().setFromPoints([from, to]);
+    const line = new THREE.Line(geo, this._tracerMat);
     line.userData.isEffect = true;
     this.scene.add(line);
     this.tracers.push({ mesh: line, life: 0.08 });
   }
 
   createImpact(position) {
-    const spark = new THREE.Mesh(
-      new THREE.SphereGeometry(0.1, 6, 6),
-      new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.8 })
-    );
+    const spark = new THREE.Mesh(this._impactGeo, this._impactMat);
     spark.userData.isEffect = true;
     spark.position.copy(position);
     this.scene.add(spark);
@@ -632,9 +650,10 @@ export class WeaponSystem {
     for (let i = this.tracers.length - 1; i >= 0; i--) {
       this.tracers[i].life -= delta;
       if (this.tracers[i].life <= 0) {
-        this.scene.remove(this.tracers[i].mesh);
-        this.tracers[i].mesh.geometry?.dispose();
-        this.tracers[i].mesh.material?.dispose();
+        const m = this.tracers[i].mesh;
+        this.scene.remove(m);
+        // Only dispose unique geometries (tracers), not shared ones (impacts)
+        if (m.isLine) m.geometry?.dispose();
         this.tracers.splice(i, 1);
       }
     }

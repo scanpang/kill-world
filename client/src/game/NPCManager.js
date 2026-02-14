@@ -1,6 +1,6 @@
 // client/src/game/NPCManager.js
 import * as THREE from 'three';
-import { NPC, NPC_TYPES } from '../../../shared/constants.js';
+import { NPC, NPC_TYPES, GAME } from '../../../shared/constants.js';
 
 export class NPCManager {
   constructor(sceneManager, physics) {
@@ -250,13 +250,15 @@ export class NPCManager {
   }
 
   update(delta, playerPos) {
+    const px = playerPos.x, pz = playerPos.z;
+
     for (const npc of this.npcs) {
       if (!npc.alive) continue;
 
       const npcPos = npc.mesh.position;
-      const distToPlayer = npcPos.distanceTo(
-        new THREE.Vector3(playerPos.x, npcPos.y, playerPos.z)
-      );
+      // Fast XZ distance (no object allocation)
+      const ddx = npcPos.x - px, ddz = npcPos.z - pz;
+      const distToPlayer = Math.sqrt(ddx * ddx + ddz * ddz);
 
       const detectRange = npc.isBoss ? 60 : NPC.DETECT_RANGE;
       const attackRange = npc.isBoss ? 4 : NPC.ATTACK_RANGE;
@@ -278,10 +280,10 @@ export class NPCManager {
         case 'attack': this.updateAttack(npc, delta, playerPos); break;
       }
 
-      // Zombie growl when close and chasing/attacking
-      if (this.sound && distToPlayer < 20 && (npc.state === 'chase' || npc.state === 'attack')) {
+      // Zombie growl when close (throttled)
+      if (this.sound && distToPlayer < 20 && npc.state !== 'patrol') {
         const now = performance.now();
-        if (now - this.lastGrowlTime > 2000 + Math.random() * 3000) {
+        if (now - this.lastGrowlTime > 3000) {
           this.lastGrowlTime = now;
           this.sound.playZombieGrowl();
         }
@@ -289,8 +291,8 @@ export class NPCManager {
 
       this.animateWalk(npc, delta);
 
-      // HP bar
-      const hpFill = npc.mesh.getObjectByName('hpFill');
+      // HP bar (cached reference)
+      const hpFill = npc.hpFill || (npc.hpFill = npc.mesh.getObjectByName('hpFill'));
       if (hpFill) {
         const scale = npc.health / npc.maxHealth;
         hpFill.scale.x = Math.max(0, scale);
@@ -346,6 +348,11 @@ export class NPCManager {
       nx = resolved.x;
       nz = resolved.z;
     }
+
+    // Map boundary clamp
+    const half = GAME.MAP_SIZE / 2 - 3;
+    nx = Math.max(-half, Math.min(half, nx));
+    nz = Math.max(-half, Math.min(half, nz));
 
     npc.mesh.position.x = nx;
     npc.mesh.position.z = nz;
@@ -431,6 +438,7 @@ export class NPCManager {
           }
         });
         npc.mesh = this.createNPCMesh(cfg, lvl);
+        npc.hpFill = null; // reset cached ref
         npc.mesh.position.set(npc.spawnPos.x, 0, npc.spawnPos.z);
         this.scene.add(npc.mesh);
       }, NPC.RESPAWN_TIME * 1000);
