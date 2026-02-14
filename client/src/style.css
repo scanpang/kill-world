@@ -167,12 +167,21 @@ canvas { display: block; }
 #ammo-display {
   position: absolute; bottom: 28px; right: 30px;
   text-align: right;
+  background: rgba(0,0,0,0.5);
+  padding: 6px 14px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
 }
 #ammo-current {
   font-family: 'Orbitron', sans-serif;
-  font-size: 42px; font-weight: 900; color: #fff; line-height: 1;
+  font-size: 48px; font-weight: 900; color: #fff; line-height: 1;
+  text-shadow: 0 0 10px rgba(255,255,255,0.5), 0 2px 4px rgba(0,0,0,0.8);
 }
-#ammo-max { font-size: 16px; color: #666; font-weight: 600; }
+#ammo-current.low { color: #ff5252; text-shadow: 0 0 12px rgba(255,50,50,0.7); }
+#ammo-max {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 18px; color: #999; font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+}
 
 /* Minimap */
 #minimap {
@@ -418,9 +427,9 @@ canvas { display: block; }
   #minimap canvas { width: 100px; height: 100px; }
   #health-bar { bottom: 16px; left: 16px; width: 150px; }
   #health-text { bottom: 28px; left: 16px; font-size: 11px; }
-  #ammo-display { bottom: 170px; right: 24px; }
-  #ammo-current { font-size: 28px; }
-  #ammo-max { font-size: 13px; }
+  #ammo-display { bottom: 170px; right: 24px; padding: 4px 10px; }
+  #ammo-current { font-size: 34px; }
+  #ammo-max { font-size: 14px; }
   #weapon-info { bottom: 200px; right: 24px; }
   #weapon-icon { width: 36px; height: 20px; }
   #weapon-name { font-size: 11px; }

@@ -66,19 +66,31 @@ export class HUD {
       }, { passive: false });
     }
 
-    // Delegate click/touch on shop items
+    // Delegate click on shop items (PC only)
     const container = document.getElementById('shop-items');
     if (container) {
       container.addEventListener('click', (e) => {
+        if ('ontouchstart' in window) return; // skip on mobile, handled by touch
         const item = e.target.closest('.shop-item');
         if (item) this.buyItem(item.dataset.id);
       });
+
+      // Mobile: differentiate scroll vs tap
+      let touchStartY = 0;
+      let touchStartItem = null;
       container.addEventListener('touchstart', (e) => {
-        const item = e.target.closest('.shop-item');
-        if (item) {
+        touchStartY = e.touches[0].clientY;
+        touchStartItem = e.target.closest('.shop-item');
+      }, { passive: true });
+
+      container.addEventListener('touchend', (e) => {
+        if (!touchStartItem) return;
+        const dy = Math.abs(e.changedTouches[0].clientY - touchStartY);
+        if (dy < 10) { // tap, not scroll
           e.preventDefault();
-          this.buyItem(item.dataset.id);
+          this.buyItem(touchStartItem.dataset.id);
         }
+        touchStartItem = null;
       }, { passive: false });
     }
   }
@@ -172,7 +184,7 @@ export class HUD {
       this.ammoCurrent.textContent = isReloading ? '...' : ammo;
       this.ammoMax.textContent = `/ ${maxAmmo}`;
     }
-    this.ammoCurrent.style.color = (ammo <= 5 && ammo !== Infinity) ? '#ff5252' : '#fff';
+    this.ammoCurrent.classList.toggle('low', ammo <= 5 && ammo !== Infinity);
 
     this.playerCount.textContent = `PLAYERS: ${playerCount}`;
     if (this.coinDisplay) this.coinDisplay.textContent = `${coins}`;
