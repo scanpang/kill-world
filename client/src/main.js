@@ -1,12 +1,9 @@
 // client/src/main.js
 import { Game } from './game/Game.js';
 
-const game = new Game();
-
-// Remove lock screen and start immediately
-const lockScreen = document.getElementById('lock-screen');
-lockScreen.style.display = 'none';
 document.getElementById('hud').classList.add('active');
+
+const game = new Game();
 game.start();
 
 // Click to lock pointer for FPS controls
