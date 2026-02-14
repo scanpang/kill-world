@@ -293,6 +293,21 @@ canvas { display: block; }
   color: #fff; font-family: 'Orbitron', sans-serif;
   font-size: 10px; font-weight: 700; touch-action: none;
 }
+#weapon-switch {
+  position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 6px;
+}
+.ws-btn {
+  width: 40px; height: 40px; border-radius: 8px;
+  border: 2px solid rgba(255,255,255,0.25);
+  background: rgba(0,0,0,0.4);
+  color: #999; font-family: 'Orbitron', sans-serif;
+  font-size: 14px; font-weight: 900; touch-action: none;
+}
+.ws-btn.active {
+  color: #fff; border-color: #ff6b35;
+  background: rgba(255,107,53,0.3);
+}
 
 /* ─── Mobile HUD ─── */
 @media (max-width: 768px) {

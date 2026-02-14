@@ -165,6 +165,19 @@ export class MobileControls {
       e.preventDefault();
       this.weapons.reload();
     }, { passive: false });
+
+    // Weapon switch buttons
+    const wsBtns = document.querySelectorAll('.ws-btn');
+    wsBtns.forEach(btn => {
+      btn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const slot = parseInt(btn.dataset.slot);
+        this.weapons.switchSlot(slot);
+        // Update button highlight
+        wsBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      }, { passive: false });
+    });
   }
 
   update() {

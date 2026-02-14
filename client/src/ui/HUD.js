@@ -52,6 +52,13 @@ export class HUD {
     if (shop) {
       shop.classList.toggle('active', this.shopOpen);
     }
+    // PC: release pointer lock when shop is open so user can click items
+    if (this.shopOpen) {
+      if (document.pointerLockElement) document.exitPointerLock();
+    } else {
+      const canvas = document.querySelector('canvas');
+      if (canvas && !('ontouchstart' in window)) canvas.requestPointerLock();
+    }
   }
 
   buyItem(itemId) {
