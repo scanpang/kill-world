@@ -9,6 +9,7 @@ import { Minimap } from '../ui/Minimap.js';
 import { HUD } from '../ui/HUD.js';
 import { NetworkManager } from '../network/NetworkManager.js';
 import { PhysicsWorld } from './PhysicsWorld.js';
+import { MobileControls } from '../ui/MobileControls.js';
 
 export class Game {
   constructor() {
@@ -25,6 +26,9 @@ export class Game {
     this.network = new NetworkManager(this);
     this.minimap = new Minimap();
     this.hud = new HUD();
+
+    // Mobile controls
+    this.mobileControls = new MobileControls(this.player, this.weapons);
 
     // Connect systems
     this.weapons.game = this;
@@ -53,6 +57,9 @@ export class Game {
     // Spawn NPCs
     this.npcManager.spawnInitialNPCs();
 
+    // Init mobile controls
+    this.mobileControls.init();
+
     // Connect to server
     this.network.connect();
 
@@ -73,6 +80,9 @@ export class Game {
 
     // Update physics
     this.physics.update(delta);
+
+    // Update mobile controls (before player update)
+    this.mobileControls.update();
 
     // Update player
     this.player.update(delta);

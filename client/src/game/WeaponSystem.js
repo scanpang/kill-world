@@ -10,6 +10,8 @@ export class WeaponSystem {
     this.raycaster = new THREE.Raycaster();
     this.game = null; // set by Game after construction
 
+    this.isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
     // Current weapon
     this.currentWeaponId = 'AssaultRifle';
     this.config = WEAPONS[this.currentWeaponId];
@@ -90,7 +92,7 @@ export class WeaponSystem {
 
   shoot() {
     if (this.isReloading || this.currentAmmo <= 0 || this.player.isDead) return;
-    if (!document.pointerLockElement) return;
+    if (!this.isMobile && !document.pointerLockElement) return;
 
     const now = performance.now();
     if (now - this.lastShotTime < this.config.fireRate) return;
@@ -230,7 +232,7 @@ export class WeaponSystem {
   }
 
   update(delta) {
-    if (this.isShooting && this.config.auto && document.pointerLockElement) {
+    if (this.isShooting && this.config.auto && (this.isMobile || document.pointerLockElement)) {
       this.shoot();
     }
 

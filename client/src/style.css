@@ -170,3 +170,113 @@ canvas { display: block; }
   0%, 100% { opacity: 0.4; }
   50% { opacity: 1; }
 }
+
+/* ─── Mobile Controls ─── */
+#mobile-controls {
+  position: fixed; inset: 0; z-index: 150;
+  pointer-events: none;
+}
+#mobile-controls > * {
+  pointer-events: auto;
+}
+
+/* Joystick */
+#joystick-zone {
+  position: absolute;
+  left: 0; bottom: 0;
+  width: 45vw; height: 50vh;
+  touch-action: none;
+}
+#joystick-base {
+  position: absolute;
+  left: 20px; bottom: 60px;
+  width: 120px; height: 120px;
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.05);
+  opacity: 0.3;
+  pointer-events: none;
+}
+#joystick-stick {
+  position: absolute;
+  left: 60px; bottom: 100px;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.5);
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+/* Look zone */
+#look-zone {
+  position: absolute;
+  right: 0; top: 0;
+  width: 55vw; height: 60vh;
+  touch-action: none;
+}
+
+/* Action buttons */
+#btn-shoot {
+  position: absolute;
+  right: 24px; bottom: 80px;
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 50, 50, 0.6);
+  background: rgba(255, 50, 50, 0.2);
+  color: #fff;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px;
+  font-weight: 900;
+  touch-action: none;
+}
+#btn-shoot:active {
+  background: rgba(255, 50, 50, 0.5);
+}
+
+#btn-jump {
+  position: absolute;
+  right: 120px; bottom: 40px;
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  border: 3px solid rgba(100, 200, 255, 0.5);
+  background: rgba(100, 200, 255, 0.15);
+  color: #fff;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  touch-action: none;
+}
+#btn-jump:active {
+  background: rgba(100, 200, 255, 0.4);
+}
+
+#btn-reload {
+  position: absolute;
+  right: 120px; bottom: 115px;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 200, 0, 0.5);
+  background: rgba(255, 200, 0, 0.15);
+  color: #fff;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  touch-action: none;
+}
+#btn-reload:active {
+  background: rgba(255, 200, 0, 0.4);
+}
+
+/* Mobile HUD adjustments */
+@media (max-width: 768px) {
+  #minimap { width: 100px; height: 100px; top: 8px; right: 8px; }
+  #minimap canvas { width: 100px; height: 100px; }
+  #health-bar { bottom: 16px; left: 16px; width: 150px; }
+  #health-text { bottom: 28px; left: 16px; font-size: 11px; }
+  #ammo-display { bottom: 170px; right: 24px; }
+  #ammo-current { font-size: 28px; }
+  #ammo-max { font-size: 13px; }
+  #player-count { top: 115px; right: 12px; font-size: 10px; }
+  #kill-feed { top: 8px; left: 8px; }
+  .kill-entry { font-size: 11px; padding: 2px 6px; }
+}
