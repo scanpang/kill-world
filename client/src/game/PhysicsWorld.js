@@ -16,7 +16,7 @@ export class PhysicsWorld {
       type: CANNON.Body.STATIC,
       shape: new CANNON.Plane(),
     });
-    groundBody.quaternion.setFromEulerAngles(-Math.PI / 2, 0, 0);
+    groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
     this.world.addBody(groundBody);
 
     this.bodies = [];
