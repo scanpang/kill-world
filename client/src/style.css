@@ -331,6 +331,42 @@ canvas { display: block; }
   flex-shrink: 0;
 }
 
+/* ─── Shop Confirm Dialog ─── */
+#shop-confirm {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: rgba(0,0,0,0.95);
+  border-top: 2px solid rgba(255,107,53,0.5);
+  padding: 16px; text-align: center;
+  animation: slideUp 0.2s ease-out;
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.confirm-msg {
+  color: #ffcc00; font-size: 14px; font-weight: 700;
+  margin-bottom: 12px;
+}
+.confirm-btns {
+  display: flex; gap: 12px; justify-content: center;
+}
+.confirm-yes, .confirm-no {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px; font-weight: 900;
+  padding: 8px 24px; border-radius: 6px;
+  cursor: pointer; border: 2px solid; pointer-events: auto;
+}
+.confirm-yes {
+  color: #fff; background: rgba(255,50,50,0.3);
+  border-color: rgba(255,50,50,0.6);
+}
+.confirm-yes:hover { background: rgba(255,50,50,0.5); }
+.confirm-no {
+  color: #aaa; background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.2);
+}
+.confirm-no:hover { background: rgba(255,255,255,0.1); }
+
 /* ─── Pause Overlay ─── */
 #overlay {
   position: fixed; inset: 0; z-index: 200;

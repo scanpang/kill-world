@@ -137,6 +137,25 @@ export class HUD {
     if (!shopItem) return;
     if (this.game.player.coins < shopItem.price) return;
 
+    // Weapon purchase: check if same slot already has a different weapon
+    const weaponConfig = WEAPONS[itemId];
+    if (weaponConfig && shopItem.category === 'weapon') {
+      const slot = shopItem.slot !== undefined ? shopItem.slot : weaponConfig.slot;
+      const existingId = this.game.weapons.slots[slot];
+      if (existingId && existingId !== itemId) {
+        const existingName = WEAPONS[existingId] ? WEAPONS[existingId].name : existingId;
+        this.showConfirmDialog(
+          `${existingName}이(가) 삭제됩니다. 구매하시겠습니까?`,
+          () => this.executeBuy(itemId, shopItem)
+        );
+        return;
+      }
+    }
+
+    this.executeBuy(itemId, shopItem);
+  }
+
+  executeBuy(itemId, shopItem) {
     this.game.player.coins -= shopItem.price;
 
     switch (itemId) {
@@ -152,7 +171,6 @@ export class HUD {
         break;
       case 'MagUp':
         this.game.player.magBonus += 0.2;
-        // Update current weapon max ammo
         this.game.weapons.maxAmmo = this.game.weapons.getEffectiveMaxAmmo(this.game.weapons.currentWeaponId);
         break;
       case 'SpeedUp':
@@ -162,7 +180,6 @@ export class HUD {
         this.game.player.critChance += 0.05;
         break;
       default: {
-        // Weapon purchase
         const weaponConfig = WEAPONS[itemId];
         if (weaponConfig) {
           const slot = shopItem.slot !== undefined ? shopItem.slot : weaponConfig.slot;
@@ -176,6 +193,31 @@ export class HUD {
 
     this.updateShopAffordability();
     this.showBuyFeedback(shopItem.name);
+  }
+
+  showConfirmDialog(message, onYes) {
+    // Remove existing dialog if any
+    const old = document.getElementById('shop-confirm');
+    if (old) old.remove();
+
+    const dialog = document.createElement('div');
+    dialog.id = 'shop-confirm';
+    dialog.innerHTML = `
+      <div class="confirm-msg">${message}</div>
+      <div class="confirm-btns">
+        <button class="confirm-yes">YES</button>
+        <button class="confirm-no">NO</button>
+      </div>
+    `;
+    document.getElementById('shop-panel').appendChild(dialog);
+
+    dialog.querySelector('.confirm-yes').addEventListener('click', () => {
+      dialog.remove();
+      onYes();
+    });
+    dialog.querySelector('.confirm-no').addEventListener('click', () => {
+      dialog.remove();
+    });
   }
 
   showBuyFeedback(name) {
