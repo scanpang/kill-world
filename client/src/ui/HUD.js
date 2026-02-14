@@ -43,6 +43,7 @@ export class HUD {
           <div class="shop-desc">${item.desc}</div>
         </div>
         <span class="shop-price">$${item.price}</span>
+        <button class="shop-buy-btn" data-id="${item.id}">구매</button>
       `;
       container.appendChild(div);
     }
@@ -72,27 +73,23 @@ export class HUD {
 
     const container = document.getElementById('shop-items');
     if (container) {
+      // Buy button click (PC)
       container.addEventListener('click', (e) => {
-        if ('ontouchstart' in window) return;
-        const item = e.target.closest('.shop-item');
-        if (item) this.buyItem(item.dataset.id);
+        const btn = e.target.closest('.shop-buy-btn');
+        if (btn) {
+          e.stopPropagation();
+          this.buyItem(btn.dataset.id);
+        }
       });
 
-      let touchStartY = 0;
-      let touchStartItem = null;
-      container.addEventListener('touchstart', (e) => {
-        touchStartY = e.touches[0].clientY;
-        touchStartItem = e.target.closest('.shop-item');
-      }, { passive: true });
-
+      // Buy button touch (Mobile)
       container.addEventListener('touchend', (e) => {
-        if (!touchStartItem) return;
-        const dy = Math.abs(e.changedTouches[0].clientY - touchStartY);
-        if (dy < 10) {
+        const btn = e.target.closest('.shop-buy-btn');
+        if (btn) {
           e.preventDefault();
-          this.buyItem(touchStartItem.dataset.id);
+          e.stopPropagation();
+          this.buyItem(btn.dataset.id);
         }
-        touchStartItem = null;
       }, { passive: false });
     }
   }
@@ -137,22 +134,24 @@ export class HUD {
     if (!shopItem) return;
     if (this.game.player.coins < shopItem.price) return;
 
-    // Weapon purchase: check if same slot already has a different weapon
-    const weaponConfig = WEAPONS[itemId];
-    if (weaponConfig && shopItem.category === 'weapon') {
-      const slot = shopItem.slot !== undefined ? shopItem.slot : weaponConfig.slot;
-      const existingId = this.game.weapons.slots[slot];
-      if (existingId && existingId !== itemId) {
-        const existingName = WEAPONS[existingId] ? WEAPONS[existingId].name : existingId;
-        this.showConfirmDialog(
-          `${existingName}이(가) 삭제됩니다. 구매하시겠습니까?`,
-          () => this.executeBuy(itemId, shopItem)
-        );
-        return;
+    // Step 1: Always ask "구매하시겠습니까?"
+    this.showConfirmDialog(`${shopItem.name} 구매하시겠습니까?`, () => {
+      // Step 2: If weapon with same slot exists, warn about deletion
+      const weaponConfig = WEAPONS[itemId];
+      if (weaponConfig && shopItem.category === 'weapon') {
+        const slot = shopItem.slot !== undefined ? shopItem.slot : weaponConfig.slot;
+        const existingId = this.game.weapons.slots[slot];
+        if (existingId && existingId !== itemId) {
+          const existingName = WEAPONS[existingId] ? WEAPONS[existingId].name : existingId;
+          this.showConfirmDialog(
+            `${existingName}이(가) 삭제됩니다. 그래도 구매하시겠습니까?`,
+            () => this.executeBuy(itemId, shopItem)
+          );
+          return;
+        }
       }
-    }
-
-    this.executeBuy(itemId, shopItem);
+      this.executeBuy(itemId, shopItem);
+    });
   }
 
   executeBuy(itemId, shopItem) {
