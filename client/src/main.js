@@ -7,45 +7,20 @@ document.getElementById('hud').classList.add('active');
 const game = new Game();
 game.start();
 
-const pauseMenu = document.getElementById('pause-menu');
-const btnResume = document.getElementById('btn-resume');
-const btnControls = document.getElementById('btn-controls');
-let isPaused = false;
+const overlay = document.getElementById('overlay');
 
-function showPause() {
-  isPaused = true;
-  pauseMenu.classList.add('active');
-}
-
-function hidePause() {
-  isPaused = false;
-  pauseMenu.classList.remove('active');
-  document.body.requestPointerLock();
-}
-
-// Click to lock pointer for FPS controls
-document.addEventListener('click', (e) => {
-  if (!isPaused && !document.pointerLockElement) {
+// Click anywhere → lock pointer and hide overlay
+document.addEventListener('click', () => {
+  if (!document.pointerLockElement) {
     document.body.requestPointerLock();
   }
 });
 
-// ESC releases pointer lock → show pause menu
+// Pointer lock acquired → hide overlay
 document.addEventListener('pointerlockchange', () => {
-  if (!document.pointerLockElement) {
-    showPause();
-    game.pause();
+  if (document.pointerLockElement) {
+    overlay.classList.remove('active');
+  } else {
+    overlay.classList.add('active');
   }
-});
-
-// Resume button
-btnResume.addEventListener('click', (e) => {
-  e.stopPropagation();
-  hidePause();
-});
-
-// Controls button
-btnControls.addEventListener('click', (e) => {
-  e.stopPropagation();
-  alert('WASD: Move\nR (hold): Sprint\nSpace: Jump\nMouse: Look\nLeft Click: Shoot\nESC: Pause');
 });
