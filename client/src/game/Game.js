@@ -11,6 +11,7 @@ import { HUD } from '../ui/HUD.js';
 import { NetworkManager } from '../network/NetworkManager.js';
 import { PhysicsWorld } from './PhysicsWorld.js';
 import { MobileControls } from '../ui/MobileControls.js';
+import { SoundManager } from './SoundManager.js';
 
 export class Game {
   constructor() {
@@ -28,14 +29,19 @@ export class Game {
     this.minimap = new Minimap();
     this.hud = new HUD();
 
+    // Sound
+    this.sound = new SoundManager();
+
     // Mobile controls
     this.mobileControls = new MobileControls(this.player, this.weapons);
 
     // Connect systems
     this.weapons.game = this;
+    this.weapons.sound = this.sound;
     this.hud.game = this;
     this.player.map = this.map;
     this.npcManager.map = this.map;
+    this.npcManager.sound = this.sound;
 
     // Kill tracking
     this.killCount = 0;
@@ -55,6 +61,8 @@ export class Game {
 
   start() {
     this.isRunning = true;
+    this.sound.init();
+    this.sound.startBGM();
     this.map.build();
     this.player.init();
     this.npcManager.spawnInitialNPCs();

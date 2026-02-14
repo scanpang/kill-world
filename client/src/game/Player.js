@@ -39,16 +39,67 @@ export class Player {
     // Map reference for collision
     this.map = null;
 
+    // Spawn point (map center safe zone)
+    this.spawnPoint = new THREE.Vector3(0, PLAYER.HEIGHT, 0);
+    this.spawnZone = null;
+
     this.setupInput();
   }
 
   init() {
-    this.position.set(
-      (Math.random() - 0.5) * 40,
-      PLAYER.HEIGHT,
-      (Math.random() - 0.5) * 40
-    );
+    this.position.copy(this.spawnPoint);
     this.camera.position.copy(this.position);
+    this.createSpawnZone();
+  }
+
+  createSpawnZone() {
+    // Glowing spawn pad on ground
+    const pad = new THREE.Group();
+
+    // Base circle
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(4, 5, 32),
+      new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.4, side: THREE.DoubleSide })
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.05;
+
+    // Inner glow
+    const inner = new THREE.Mesh(
+      new THREE.CircleGeometry(4, 32),
+      new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.15, side: THREE.DoubleSide })
+    );
+    inner.rotation.x = -Math.PI / 2;
+    inner.position.y = 0.04;
+
+    // Cross marker
+    const crossMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.5 });
+    const bar1 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.05, 6), crossMat);
+    bar1.position.y = 0.06;
+    const bar2 = new THREE.Mesh(new THREE.BoxGeometry(6, 0.05, 0.3), crossMat);
+    bar2.position.y = 0.06;
+
+    // Floating text "SPAWN" using a sprite
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#00ff88';
+    ctx.font = 'bold 36px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('SPAWN', 128, 42);
+    const tex = new THREE.CanvasTexture(canvas);
+    const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.7 });
+    const sprite = new THREE.Sprite(spriteMat);
+    sprite.scale.set(4, 1, 1);
+    sprite.position.y = 6;
+
+    pad.add(ring, inner, bar1, bar2, sprite);
+    pad.position.set(this.spawnPoint.x, 0, this.spawnPoint.z);
+    pad.userData.isEffect = true;
+    pad.traverse(c => { c.userData.isEffect = true; });
+    this.scene.add(pad);
+    this.spawnZone = pad;
   }
 
   setupInput() {
@@ -182,7 +233,12 @@ export class Player {
   respawn() {
     this.health = this.maxHealth;
     this.isDead = false;
-    this.position.set((Math.random() - 0.5) * 60, PLAYER.HEIGHT, (Math.random() - 0.5) * 60);
+    // Respawn at spawn zone with slight random offset
+    this.position.set(
+      this.spawnPoint.x + (Math.random() - 0.5) * 6,
+      PLAYER.HEIGHT,
+      this.spawnPoint.z + (Math.random() - 0.5) * 6
+    );
     this.velocityY = 0;
   }
 }

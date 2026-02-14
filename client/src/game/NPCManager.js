@@ -8,8 +8,10 @@ export class NPCManager {
     this.physics = physics;
     this.npcs = [];
     this.map = null;
+    this.sound = null;
     this.bossAlive = false;
     this.zombieLevel = 1; // increases when boss dies
+    this.lastGrowlTime = 0;
   }
 
   spawnInitialNPCs() {
@@ -276,6 +278,15 @@ export class NPCManager {
         case 'attack': this.updateAttack(npc, delta, playerPos); break;
       }
 
+      // Zombie growl when close and chasing/attacking
+      if (this.sound && distToPlayer < 20 && (npc.state === 'chase' || npc.state === 'attack')) {
+        const now = performance.now();
+        if (now - this.lastGrowlTime > 2000 + Math.random() * 3000) {
+          this.lastGrowlTime = now;
+          this.sound.playZombieGrowl();
+        }
+      }
+
       this.animateWalk(npc, delta);
 
       // HP bar
@@ -369,6 +380,7 @@ export class NPCManager {
     if (!npc || !npc.alive) return;
 
     npc.health -= damage;
+    if (this.sound) this.sound.playZombieHit();
     // Aggro: chase player for 8 seconds after being hit
     npc.aggroTimer = 8;
 
@@ -381,6 +393,7 @@ export class NPCManager {
 
     if (npc.health <= 0) {
       npc.alive = false;
+      if (this.sound) this.sound.playZombieDeath();
       this.scene.remove(npc.mesh);
 
       if (npc.isBoss) {

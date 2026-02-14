@@ -139,6 +139,7 @@ export class HUD {
         break;
       case 'Grenade':
         this.game.weapons.slots[3] = 'Grenade';
+        this.game.weapons.slotAmmo['Grenade'] = 1; // fresh grenade
         this.game.weapons.switchSlot(3);
         break;
       case 'Armor':
@@ -153,6 +154,11 @@ export class HUD {
         break;
       case 'AmmoBox':
         this.game.weapons.currentAmmo = this.game.weapons.maxAmmo;
+        this.game.weapons.slotAmmo[this.game.weapons.currentWeaponId] = this.game.weapons.currentAmmo;
+        if (this.game.weapons.reloadTimer) {
+          clearTimeout(this.game.weapons.reloadTimer);
+          this.game.weapons.reloadTimer = null;
+        }
         this.game.weapons.isReloading = false;
         break;
       case 'Shield':
@@ -162,6 +168,7 @@ export class HUD {
         const weaponConfig = WEAPONS[itemId];
         if (weaponConfig) {
           this.game.weapons.slots[3] = itemId;
+          this.game.weapons.slotAmmo[itemId] = weaponConfig.maxAmmo; // fresh ammo
           this.game.weapons.switchSlot(3);
         }
         break;

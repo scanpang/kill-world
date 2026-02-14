@@ -1,6 +1,6 @@
 // client/src/game/WeaponSystem.js
 import * as THREE from 'three';
-import { WEAPONS, WEAPON_SLOTS } from '../../../shared/constants.js';
+import { WEAPONS, WEAPON_SLOTS, NPC_TYPES } from '../../../shared/constants.js';
 
 export class WeaponSystem {
   constructor(sceneManager, player) {
@@ -9,6 +9,7 @@ export class WeaponSystem {
     this.camera = sceneManager.camera;
     this.raycaster = new THREE.Raycaster();
     this.game = null;
+    this.sound = null;
     this.isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
     // Weapon slots (1-4)
@@ -19,8 +20,15 @@ export class WeaponSystem {
     this.currentAmmo = this.config.maxAmmo;
     this.maxAmmo = this.config.maxAmmo;
     this.isReloading = false;
+    this.reloadTimer = null;
     this.lastShotTime = 0;
     this.isShooting = false;
+
+    // Per-slot ammo tracking
+    this.slotAmmo = {};
+    for (const slot of this.slots) {
+      this.slotAmmo[slot] = WEAPONS[slot].maxAmmo;
+    }
 
     // Gun model - per weapon
     this.gunModel = this.createWeaponModel(this.currentWeaponId);
@@ -254,6 +262,8 @@ export class WeaponSystem {
     }
 
     gun.position.set(0.28, -0.22, -0.45);
+    gun.userData.isPlayerGun = true;
+    gun.traverse(c => { c.userData.isPlayerGun = true; });
     return gun;
   }
 
@@ -280,13 +290,34 @@ export class WeaponSystem {
 
   switchSlot(index) {
     if (index < 0 || index >= this.slots.length) return;
-    if (index === this.currentSlot) return;
+
+    const newWeaponId = this.slots[index];
+
+    // Skip only if same slot AND same weapon
+    if (index === this.currentSlot && newWeaponId === this.currentWeaponId) return;
+
+    // Save current slot ammo
+    this.slotAmmo[this.currentWeaponId] = this.currentAmmo;
+
     this.currentSlot = index;
-    this.currentWeaponId = this.slots[index];
+    this.currentWeaponId = newWeaponId;
     this.config = WEAPONS[this.currentWeaponId];
-    this.currentAmmo = this.config.maxAmmo;
     this.maxAmmo = this.config.maxAmmo;
+
+    // Cancel any pending reload from previous weapon
+    if (this.reloadTimer) {
+      clearTimeout(this.reloadTimer);
+      this.reloadTimer = null;
+    }
     this.isReloading = false;
+
+    // Restore saved ammo (or max if new weapon)
+    if (this.slotAmmo[this.currentWeaponId] !== undefined) {
+      this.currentAmmo = this.slotAmmo[this.currentWeaponId];
+    } else {
+      this.currentAmmo = this.config.maxAmmo;
+      this.slotAmmo[this.currentWeaponId] = this.currentAmmo;
+    }
 
     // Rebuild weapon model
     this.camera.remove(this.gunModel);
@@ -310,14 +341,17 @@ export class WeaponSystem {
 
     if (this.config.type === 'melee') {
       this.meleeAttack();
+      if (this.sound) this.sound.playMelee();
     } else if (this.config.type === 'grenade') {
       this.throwGrenade();
+      if (this.sound) this.sound.playGrenade();
     } else {
       const pellets = this.config.pellets || 1;
       for (let i = 0; i < pellets; i++) {
         this.fireRay();
       }
       this.applyRecoil();
+      if (this.sound) this.sound.playGunshot(this.currentWeaponId);
     }
   }
 
@@ -382,6 +416,7 @@ export class WeaponSystem {
 
   explodeGrenade(position) {
     if (!this.game) return;
+    if (this.sound) this.sound.playExplosion();
     const blastRadius = this.config.blastRadius || 12;
     const damage = this.config.damage || 200;
 
@@ -442,54 +477,82 @@ export class WeaponSystem {
     ).normalize();
     direction.applyQuaternion(this.camera.quaternion);
 
-    this.raycaster.set(this.camera.position.clone(), direction);
+    const origin = this.camera.getWorldPosition(new THREE.Vector3());
+
+    // Geometric ray-sphere NPC hit test (no Three.js raycast dependency)
+    let hitNPC = null;
+    let hitDist = this.config.range;
+
+    if (this.game) {
+      const npcManager = this.game.npcManager;
+      for (let i = 0; i < npcManager.npcs.length; i++) {
+        const npc = npcManager.npcs[i];
+        if (!npc.alive) continue;
+
+        const cfg = NPC_TYPES[npc.type] || NPC_TYPES.normal;
+        const npcPos = npc.mesh.position;
+
+        // NPC body center (approximate)
+        const centerY = npcPos.y + 1.8 * cfg.scale;
+        const npcCenter = new THREE.Vector3(npcPos.x, centerY, npcPos.z);
+
+        // Ray-sphere intersection
+        const toNPC = npcCenter.clone().sub(origin);
+        const proj = toNPC.dot(direction);
+        if (proj < 0 || proj > hitDist) continue; // behind camera or too far
+
+        const closestPoint = origin.clone().addScaledVector(direction, proj);
+        const perpDist = closestPoint.distanceTo(npcCenter);
+        const hitRadius = 1.0 * cfg.scale; // generous hit sphere
+
+        if (perpDist < hitRadius && proj < hitDist) {
+          hitDist = proj;
+          hitNPC = { index: i, npc, cfg, hitPoint: closestPoint };
+        }
+      }
+    }
+
+    if (hitNPC) {
+      const { index, npc, cfg, hitPoint } = hitNPC;
+      this.createTracer(origin, hitPoint);
+      this.createImpact(hitPoint);
+
+      const localHitY = hitPoint.y - npc.mesh.position.y;
+      const isHeadshot = localHitY > 2.7 * cfg.scale;
+
+      let damage = this.config.damage;
+      if (isHeadshot) damage = Math.floor(damage * this.config.headshotMul);
+
+      this.game.npcManager.damageNPC(index, damage);
+      this.game.hud.showHitMarker(isHeadshot);
+
+      if (npc.health <= 0) {
+        this.game.onNPCKill(index);
+      }
+      return;
+    }
+
+    // No NPC hit - raycast scene for tracer endpoint only
+    this.raycaster.set(origin, direction);
     this.raycaster.far = this.config.range;
-
     const intersects = this.raycaster.intersectObjects(this.scene.scene.children, true);
-
-    // Filter out effects (tracers, impacts, explosions, grenades)
     for (const hit of intersects) {
       let obj = hit.object;
-      // Walk up to check if any ancestor is tagged as effect
-      let isEffect = false;
+      let skip = false;
       while (obj) {
-        if (obj.userData && obj.userData.isEffect) { isEffect = true; break; }
+        if (obj.userData && (obj.userData.isEffect || obj.userData.isPlayerGun)) { skip = true; break; }
         obj = obj.parent;
       }
-      if (isEffect) continue;
+      if (skip) continue;
 
-      this.createTracer(this.camera.position, hit.point);
+      this.createTracer(origin, hit.point);
       this.createImpact(hit.point);
-      if (this.game) this.checkNPCHit(hit);
-      return; // only process first valid hit
-    }
-  }
-
-  checkNPCHit(hit) {
-    let obj = hit.object;
-    while (obj.parent && obj.parent !== this.scene.scene) {
-      obj = obj.parent;
+      return;
     }
 
-    const npcManager = this.game.npcManager;
-    for (let i = 0; i < npcManager.npcs.length; i++) {
-      const npc = npcManager.npcs[i];
-      if (npc.alive && npc.mesh === obj) {
-        const localHitY = hit.point.y - npc.mesh.position.y;
-        const isHeadshot = localHitY > 2.7;
-
-        let damage = this.config.damage;
-        if (isHeadshot) damage = Math.floor(damage * this.config.headshotMul);
-
-        npcManager.damageNPC(i, damage);
-        this.game.hud.showHitMarker(isHeadshot);
-
-        if (npc.health <= 0) {
-          this.game.onNPCKill(i);
-        }
-        break;
-      }
-    }
+    // Nothing hit - tracer goes to max range
+    const endpoint = origin.clone().addScaledVector(direction, this.config.range);
+    this.createTracer(origin, endpoint);
   }
 
   createTracer(from, to) {
@@ -523,9 +586,16 @@ export class WeaponSystem {
     if (this.isReloading || this.config.reloadTime === 0) return;
     if (this.currentAmmo === this.config.maxAmmo) return;
     this.isReloading = true;
-    setTimeout(() => {
-      this.currentAmmo = this.config.maxAmmo;
+    if (this.sound) this.sound.playReload();
+    const weaponId = this.currentWeaponId;
+    this.reloadTimer = setTimeout(() => {
+      // Only apply if still on the same weapon
+      if (this.currentWeaponId === weaponId) {
+        this.currentAmmo = this.config.maxAmmo;
+        this.slotAmmo[weaponId] = this.currentAmmo;
+      }
       this.isReloading = false;
+      this.reloadTimer = null;
     }, this.config.reloadTime);
   }
 
