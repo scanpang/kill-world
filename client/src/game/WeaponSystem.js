@@ -692,68 +692,52 @@ export class WeaponSystem {
     const baseDamage = this.config.damage;
     const damageMultiplier = this.player.damageMultiplier * (1 + this.player.damageBonus);
 
-    // Step 1: Check wall/environment hit distance FIRST
-    let wallHitDist = this.config.range;
-    let wallHitPoint = null;
+    // Single raycaster pass: find first NPC or wall hit
     this.raycaster.set(origin, direction);
     this.raycaster.far = this.config.range;
     const intersects = this.raycaster.intersectObjects(this.scene.scene.children, true);
+
+    let hitNPC = null;
+    let wallHitPoint = null;
+
     for (const hit of intersects) {
       let obj = hit.object;
       let skip = false;
-      while (obj) {
-        if (obj.userData && (obj.userData.isEffect || obj.userData.isPlayerGun || obj.userData.isNPC)) { skip = true; break; }
-        obj = obj.parent;
+      let foundNPC = false;
+
+      // Walk up parent chain to classify hit
+      let check = obj;
+      while (check) {
+        if (check.userData) {
+          if (check.userData.isEffect || check.userData.isPlayerGun) { skip = true; break; }
+          if (check.userData.isNPC) { foundNPC = true; break; }
+        }
+        check = check.parent;
       }
       if (skip) continue;
-      wallHitDist = hit.distance;
+
+      if (foundNPC && this.game) {
+        // Find which NPC this mesh belongs to
+        let npcRoot = obj;
+        while (npcRoot.parent && npcRoot.parent.type !== 'Scene') {
+          npcRoot = npcRoot.parent;
+        }
+        const npcManager = this.game.npcManager;
+        for (let i = 0; i < npcManager.npcs.length; i++) {
+          const npc = npcManager.npcs[i];
+          if (npc.mesh === npcRoot && npc.alive) {
+            const cfg = NPC_TYPES[npc.type] || NPC_TYPES.normal;
+            hitNPC = { index: i, npc, cfg, hitPoint: hit.point.clone(), hitDist: hit.distance };
+            break;
+          }
+        }
+        if (hitNPC) break;
+        continue; // NPC mesh but couldn't match (dead?) - skip
+      }
+
+      // Wall/environment hit
       wallHitPoint = hit.point.clone();
       break;
-    }
-
-    // Step 2: Check NPC hits (only if closer than wall)
-    let hitNPC = null;
-    let hitDist = wallHitDist; // limit to wall distance
-
-    if (this.game) {
-      const npcManager = this.game.npcManager;
-      const dx = direction.x, dy = direction.y, dz = direction.z;
-
-      for (let i = 0; i < npcManager.npcs.length; i++) {
-        const npc = npcManager.npcs[i];
-        if (!npc.alive) continue;
-
-        const cfg = NPC_TYPES[npc.type] || NPC_TYPES.normal;
-        const npcPos = npc.mesh.position;
-
-        const ox = origin.x - npcPos.x;
-        const oz = origin.z - npcPos.z;
-        const denom = dx * dx + dz * dz;
-        if (denom < 0.0001) continue;
-
-        const t = -(ox * dx + oz * dz) / denom;
-        if (t < 0 || t > hitDist) continue;
-
-        const cxz = ox + dx * t;
-        const czz = oz + dz * t;
-        const perpXZ = Math.sqrt(cxz * cxz + czz * czz);
-        const hitRadius = 1.0 * cfg.scale;
-        if (perpXZ > hitRadius) continue;
-
-        const hitY = origin.y + dy * t;
-        const npcTop = 3.8 * cfg.scale;
-        if (hitY < -0.5 || hitY > npcTop + 0.5) continue;
-
-        if (t < hitDist) {
-          hitDist = t;
-          const hitPoint = new THREE.Vector3(
-            origin.x + dx * t,
-            origin.y + dy * t,
-            origin.z + dz * t
-          );
-          hitNPC = { index: i, npc, cfg, hitPoint };
-        }
-      }
     }
 
     if (hitNPC) {
