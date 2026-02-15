@@ -691,53 +691,73 @@ export class WeaponSystem {
 
     const baseDamage = this.config.damage;
     const damageMultiplier = this.player.damageMultiplier * (1 + this.player.damageBonus);
+    const range = this.config.range;
 
-    // Single raycaster pass: find first NPC or wall hit
-    this.raycaster.set(origin, direction);
-    this.raycaster.far = this.config.range;
-    const intersects = this.raycaster.intersectObjects(this.scene.scene.children, true);
-
-    let hitNPC = null;
+    // Step 1: Find wall distance (skip NPC meshes, effects, player gun)
+    let wallHitDist = range;
     let wallHitPoint = null;
-
-    for (const hit of intersects) {
-      let obj = hit.object;
-      let skip = false;
-      let foundNPC = false;
-
-      // Walk up parent chain to classify hit
-      let check = obj;
-      while (check) {
-        if (check.userData) {
-          if (check.userData.isEffect || check.userData.isPlayerGun) { skip = true; break; }
-          if (check.userData.isNPC) { foundNPC = true; break; }
+    try {
+      this.raycaster.set(origin, direction);
+      this.raycaster.far = range;
+      const intersects = this.raycaster.intersectObjects(this.scene.scene.children, true);
+      for (const hit of intersects) {
+        let obj = hit.object;
+        let skip = false;
+        while (obj) {
+          if (obj.userData && (obj.userData.isEffect || obj.userData.isPlayerGun || obj.userData.isNPC)) { skip = true; break; }
+          obj = obj.parent;
         }
-        check = check.parent;
+        if (!skip) {
+          wallHitDist = hit.distance;
+          wallHitPoint = hit.point.clone();
+          break;
+        }
       }
-      if (skip) continue;
+    } catch (e) { /* raycaster error - use default range */ }
 
-      if (foundNPC && this.game) {
-        // Find which NPC this mesh belongs to
-        let npcRoot = obj;
-        while (npcRoot.parent && npcRoot.parent.type !== 'Scene') {
-          npcRoot = npcRoot.parent;
-        }
-        const npcManager = this.game.npcManager;
-        for (let i = 0; i < npcManager.npcs.length; i++) {
-          const npc = npcManager.npcs[i];
-          if (npc.mesh === npcRoot && npc.alive) {
-            const cfg = NPC_TYPES[npc.type] || NPC_TYPES.normal;
-            hitNPC = { index: i, npc, cfg, hitPoint: hit.point.clone(), hitDist: hit.distance };
-            break;
-          }
-        }
-        if (hitNPC) break;
-        continue; // NPC mesh but couldn't match (dead?) - skip
+    // Step 2: Check NPC hits using 3D ray-sphere test (no raycaster dependency)
+    let hitNPC = null;
+    let hitDist = wallHitDist;
+
+    if (this.game) {
+      const npcManager = this.game.npcManager;
+
+      for (let i = 0; i < npcManager.npcs.length; i++) {
+        const npc = npcManager.npcs[i];
+        if (!npc.alive) continue;
+
+        const cfg = NPC_TYPES[npc.type] || NPC_TYPES.normal;
+        const s = cfg.scale;
+        const npcPos = npc.mesh.position;
+
+        // Vector from ray origin to NPC center (body midpoint)
+        const tX = npcPos.x - origin.x;
+        const tY = (npcPos.y + 1.9 * s) - origin.y;
+        const tZ = npcPos.z - origin.z;
+
+        // Project onto ray direction (direction is unit vector)
+        const proj = tX * direction.x + tY * direction.y + tZ * direction.z;
+        if (proj < 0 || proj > hitDist) continue;
+
+        // Perpendicular distance squared from ray to NPC center
+        const distSq = tX * tX + tY * tY + tZ * tZ;
+        const perpSq = distSq - proj * proj;
+        const hitRadius = 1.2 * s;
+        if (perpSq > hitRadius * hitRadius) continue;
+
+        // Verify Y bounds at hit point
+        const hitY = origin.y + direction.y * proj;
+        const npcTop = 3.8 * s;
+        if (hitY < npcPos.y - 0.5 || hitY > npcPos.y + npcTop + 0.5) continue;
+
+        hitDist = proj;
+        const hitPoint = new THREE.Vector3(
+          origin.x + direction.x * proj,
+          hitY,
+          origin.z + direction.z * proj
+        );
+        hitNPC = { index: i, npc, cfg, hitPoint };
       }
-
-      // Wall/environment hit
-      wallHitPoint = hit.point.clone();
-      break;
     }
 
     if (hitNPC) {
@@ -768,10 +788,10 @@ export class WeaponSystem {
 
       // Shield zombie: 30% reduced damage from front (nerfed from 50%)
       if (npc.type === 'shield') {
-        const dx = direction.x, dz = direction.z;
+        const sdx = direction.x, sdz = direction.z;
         const nfx = Math.sin(npc.mesh.rotation.y);
         const nfz = Math.cos(npc.mesh.rotation.y);
-        const dot = dx * nfx + dz * nfz;
+        const dot = sdx * nfx + sdz * nfz;
         if (dot < -0.3) {
           damage = Math.floor(damage * 0.7);
         }
@@ -806,7 +826,7 @@ export class WeaponSystem {
         this.applyExplosion(wallHitPoint, baseDamage, damageMultiplier);
       }
     } else {
-      const endpoint = origin.clone().addScaledVector(direction, this.config.range);
+      const endpoint = origin.clone().addScaledVector(direction, range);
       this.createTracer(origin, endpoint);
     }
   }
