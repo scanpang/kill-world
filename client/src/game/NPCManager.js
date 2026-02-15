@@ -1,6 +1,6 @@
 // client/src/game/NPCManager.js
 import * as THREE from 'three';
-import { NPC, NPC_TYPES, GAME } from '../../../shared/constants.js';
+import { NPC, NPC_TYPES, GAME, SAFE_ZONE, WEAKNESS_DAMAGE_MULTIPLIER } from '../../../shared/constants.js';
 
 export class NPCManager {
   constructor(sceneManager, physics) {
@@ -11,6 +11,7 @@ export class NPCManager {
     this.sound = null;
     this.bossAlive = false;
     this.bossKillCount = 0;
+    this.totalKillCount = 0;
     this.zombieLevel = 1;
     this.lastGrowlTime = 0;
   }
@@ -31,10 +32,36 @@ export class NPCManager {
 
   randomType() {
     const r = Math.random();
-    if (r < 0.10) return 'tank';
-    if (r < 0.22) return 'shield';
-    if (r < 0.45) return 'fast';
-    return 'normal';
+    const kills = this.totalKillCount;
+
+    if (kills >= 200) {
+      // Unique tier unlocked
+      if (r < 0.07) return 'banshee';
+      if (r < 0.13) return 'juggernaut';
+      if (r < 0.20) return 'reaper';
+      if (r < 0.27) return 'spitter';
+      if (r < 0.35) return 'stalker';
+      if (r < 0.43) return 'brute';
+      if (r < 0.49) return 'tank';
+      if (r < 0.57) return 'shield';
+      if (r < 0.70) return 'fast';
+      return 'normal';
+    } else if (kills >= 100) {
+      // Rare tier unlocked
+      if (r < 0.08) return 'spitter';
+      if (r < 0.16) return 'stalker';
+      if (r < 0.24) return 'brute';
+      if (r < 0.32) return 'tank';
+      if (r < 0.42) return 'shield';
+      if (r < 0.60) return 'fast';
+      return 'normal';
+    } else {
+      // Normal only
+      if (r < 0.10) return 'tank';
+      if (r < 0.22) return 'shield';
+      if (r < 0.45) return 'fast';
+      return 'normal';
+    }
   }
 
   spawnNPC(x, z, type = 'normal') {
@@ -71,6 +98,8 @@ export class NPCManager {
       damage: damage,
       typeName: cfg.name,
       type: type,
+      tier: cfg.tier || 'normal',
+      weakness: cfg.weakness || null,
       level: lvl,
       isBoss: type === 'boss',
       spawnPos: { x, z },
@@ -118,7 +147,7 @@ export class NPCManager {
     }
   }
 
-  createLevelLabel(level, isBoss) {
+  createLevelLabel(level, isBoss, tier = 'normal') {
     const canvas = document.createElement('canvas');
     canvas.width = 128;
     canvas.height = 48;
@@ -126,17 +155,36 @@ export class NPCManager {
 
     ctx.clearRect(0, 0, 128, 48);
 
-    ctx.fillStyle = isBoss ? 'rgba(128,0,255,0.7)' : 'rgba(0,0,0,0.6)';
+    let bgColor, borderColor, textColor;
+    if (isBoss) {
+      bgColor = 'rgba(128,0,255,0.7)';
+      borderColor = '#ff00ff';
+      textColor = '#ffcc00';
+    } else if (tier === 'unique') {
+      bgColor = 'rgba(80,0,120,0.7)';
+      borderColor = '#ff44ff';
+      textColor = '#ff88ff';
+    } else if (tier === 'rare') {
+      bgColor = 'rgba(120,80,0,0.7)';
+      borderColor = '#ffaa00';
+      textColor = '#ffcc44';
+    } else {
+      bgColor = 'rgba(0,0,0,0.6)';
+      borderColor = 'rgba(255,255,255,0.3)';
+      textColor = '#fff';
+    }
+
+    ctx.fillStyle = bgColor;
     const w = 100, h = 32, x = 14, y = 8;
     ctx.beginPath();
     ctx.roundRect(x, y, w, h, 8);
     ctx.fill();
 
-    ctx.strokeStyle = isBoss ? '#ff00ff' : 'rgba(255,255,255,0.3)';
+    ctx.strokeStyle = borderColor;
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    ctx.fillStyle = isBoss ? '#ffcc00' : '#fff';
+    ctx.fillStyle = textColor;
     ctx.font = 'bold 22px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -159,7 +207,7 @@ export class NPCManager {
       npc.mesh.remove(old);
     }
     const cfg = NPC_TYPES[npc.type] || NPC_TYPES.normal;
-    const label = this.createLevelLabel(npc.level, npc.isBoss);
+    const label = this.createLevelLabel(npc.level, npc.isBoss, npc.tier);
     label.position.set(0, (3.8 + 1.2) * cfg.scale, 0);
     npc.mesh.add(label);
   }
@@ -167,6 +215,7 @@ export class NPCManager {
   createNPCMesh(cfg, level) {
     const group = new THREE.Group();
     const s = cfg.scale;
+    const tier = cfg.tier || 'normal';
     const mat = (color) => new THREE.MeshStandardMaterial({ color });
 
     const head = new THREE.Mesh(
@@ -176,7 +225,12 @@ export class NPCManager {
     head.position.y = 3.2 * s;
     head.castShadow = true;
 
-    const eyeColor = cfg === NPC_TYPES.boss ? 0xff00ff : 0xff0000;
+    // Eye color per type
+    const eyeColors = {
+      boss: 0xff00ff, brute: 0xff4400, stalker: 0xaaff00, spitter: 0x00ff44,
+      reaper: 0xff88ff, juggernaut: 0xff6600, banshee: 0x00ffff,
+    };
+    const eyeColor = eyeColors[this._cfgToType(cfg)] || 0xff0000;
     const eyeMat = new THREE.MeshStandardMaterial({
       color: eyeColor, emissive: eyeColor, emissiveIntensity: 0.8,
     });
@@ -186,44 +240,73 @@ export class NPCManager {
     const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
     rightEye.position.set(0.22 * s, 3.3 * s, 0.51 * s);
 
+    // Banshee: transparent body
+    const isBanshee = cfg === NPC_TYPES.banshee;
+    const bodyMat = isBanshee
+      ? new THREE.MeshStandardMaterial({ color: cfg.bodyColor, transparent: true, opacity: 0.4 })
+      : mat(cfg.bodyColor);
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(1.2 * s, 1.4 * s, 0.7 * s),
-      mat(cfg.bodyColor)
+      bodyMat
     );
     body.position.y = 2.0 * s;
     body.castShadow = true;
 
     const armGeo = new THREE.BoxGeometry(0.4 * s, 1.2 * s, 0.4 * s);
-    const armMat = mat(cfg.bodyColor);
-    const leftArm = new THREE.Mesh(armGeo, armMat);
+    const armMaterial = isBanshee
+      ? new THREE.MeshStandardMaterial({ color: cfg.bodyColor, transparent: true, opacity: 0.4 })
+      : mat(cfg.bodyColor);
+    const leftArm = new THREE.Mesh(armGeo, armMaterial);
     leftArm.position.set(-0.8 * s, 2.0 * s, 0);
-    const rightArm = new THREE.Mesh(armGeo, armMat);
+    const rightArm = new THREE.Mesh(armGeo, armMaterial);
     rightArm.position.set(0.8 * s, 2.0 * s, 0);
 
     const legGeo = new THREE.BoxGeometry(0.5 * s, 1.2 * s, 0.5 * s);
-    const legMat = mat(0x333333);
+    const legMat = isBanshee
+      ? new THREE.MeshStandardMaterial({ color: 0x333333, transparent: true, opacity: 0.4 })
+      : mat(0x333333);
     const leftLeg = new THREE.Mesh(legGeo, legMat);
     leftLeg.position.set(-0.3 * s, 0.6 * s, 0);
     const rightLeg = new THREE.Mesh(legGeo, legMat);
     rightLeg.position.set(0.3 * s, 0.6 * s, 0);
 
+    // HP bar color by tier
+    const isBoss = cfg === NPC_TYPES.boss;
+    const hpW = isBoss ? 2.0 * s : 1.5 * s;
+    const hpH = isBoss ? 0.25 : 0.2;
+    const hpY = (3.8 + 0.8) * s;
     const hpBg = new THREE.Mesh(
-      new THREE.BoxGeometry(1.2 * s, 0.12, 0.05),
-      mat(0x333333)
+      new THREE.BoxGeometry(hpW, hpH, 0.05),
+      new THREE.MeshStandardMaterial({ color: 0x111111, transparent: true, opacity: 0.85 })
     );
-    hpBg.position.set(0, (3.8 + 0.6) * s, 0);
-    const hpColor = cfg === NPC_TYPES.boss ? 0xff00ff : 0xff0000;
+    hpBg.position.set(0, hpY, 0);
+
+    let hpColor;
+    if (isBoss) {
+      hpColor = 0xff00ff;
+    } else if (tier === 'unique') {
+      const uniqueHpColors = { reaper: 0xcc44ff, juggernaut: 0x8888cc, banshee: 0x44ccff };
+      hpColor = uniqueHpColors[this._cfgToType(cfg)] || 0xcc44ff;
+    } else if (tier === 'rare') {
+      hpColor = 0xffaa00;
+    } else {
+      hpColor = 0x00e676;
+    }
+
+    const hpFillMat = new THREE.MeshStandardMaterial({
+      color: hpColor, emissive: hpColor, emissiveIntensity: 0.4,
+    });
     const hpFill = new THREE.Mesh(
-      new THREE.BoxGeometry(1.18 * s, 0.1, 0.06),
-      mat(hpColor)
+      new THREE.BoxGeometry((hpW - 0.04), hpH - 0.04, 0.06),
+      hpFillMat
     );
-    hpFill.position.set(0, (3.8 + 0.6) * s, 0.01);
+    hpFill.position.set(0, hpY, 0.01);
     hpFill.name = 'hpFill';
 
     group.add(head, leftEye, rightEye, body, leftArm, rightArm, leftLeg, rightLeg, hpBg, hpFill);
 
     // Boss horns
-    if (cfg === NPC_TYPES.boss) {
+    if (isBoss) {
       const hornMat = mat(0xffcc00);
       const hornGeo = new THREE.ConeGeometry(0.2 * s, 0.8 * s, 4);
       const lHorn = new THREE.Mesh(hornGeo, hornMat);
@@ -246,7 +329,7 @@ export class NPCManager {
       group.add(shield);
     }
 
-    // Shield zombie - front shield (functional: 50% front damage reduction)
+    // Shield zombie - front shield
     if (cfg === NPC_TYPES.shield) {
       const shieldGeo = new THREE.BoxGeometry(1.4 * s, 2.2 * s, 0.12 * s);
       const shieldMat = new THREE.MeshStandardMaterial({
@@ -256,7 +339,6 @@ export class NPCManager {
       shield.position.set(0, 1.8 * s, 0.55 * s);
       group.add(shield);
 
-      // Shield border glow
       const borderGeo = new THREE.BoxGeometry(1.5 * s, 2.3 * s, 0.04 * s);
       const borderMat = new THREE.MeshStandardMaterial({
         color: 0x66ff66, emissive: 0x66ff66, emissiveIntensity: 0.3,
@@ -267,8 +349,109 @@ export class NPCManager {
       group.add(border);
     }
 
-    const isBoss = cfg === NPC_TYPES.boss;
-    const label = this.createLevelLabel(level, isBoss);
+    // Brute: shoulder armor pads
+    if (cfg === NPC_TYPES.brute) {
+      const padMat = mat(0x880000);
+      const padGeo = new THREE.BoxGeometry(0.6 * s, 0.3 * s, 0.5 * s);
+      const lPad = new THREE.Mesh(padGeo, padMat);
+      lPad.position.set(-0.8 * s, 2.8 * s, 0);
+      const rPad = new THREE.Mesh(padGeo, padMat);
+      rPad.position.set(0.8 * s, 2.8 * s, 0);
+      group.add(lPad, rPad);
+    }
+
+    // Stalker: long claws on hands
+    if (cfg === NPC_TYPES.stalker) {
+      const clawMat = mat(0xccaa00);
+      const clawGeo = new THREE.BoxGeometry(0.08 * s, 0.08 * s, 0.5 * s);
+      for (let side = -1; side <= 1; side += 2) {
+        for (let i = -1; i <= 1; i++) {
+          const claw = new THREE.Mesh(clawGeo, clawMat);
+          claw.position.set(side * 0.8 * s, 1.3 * s, -(0.3 + i * 0.1) * s);
+          claw.rotation.x = -0.3;
+          group.add(claw);
+        }
+      }
+    }
+
+    // Spitter: bloated belly
+    if (cfg === NPC_TYPES.spitter) {
+      const bellyMat = new THREE.MeshStandardMaterial({
+        color: 0x44aa44, emissive: 0x00ff22, emissiveIntensity: 0.3,
+      });
+      const belly = new THREE.Mesh(
+        new THREE.SphereGeometry(0.5 * s, 8, 8),
+        bellyMat
+      );
+      belly.position.set(0, 1.6 * s, 0.35 * s);
+      group.add(belly);
+    }
+
+    // Reaper: scythe
+    if (cfg === NPC_TYPES.reaper) {
+      const handleMat = mat(0x222222);
+      const handle = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08 * s, 2.5 * s, 0.08 * s),
+        handleMat
+      );
+      handle.position.set(1.0 * s, 2.5 * s, 0);
+      group.add(handle);
+
+      const bladeMat = new THREE.MeshStandardMaterial({
+        color: 0x8800aa, emissive: 0x8800aa, emissiveIntensity: 0.5,
+      });
+      const blade = new THREE.Mesh(
+        new THREE.BoxGeometry(0.8 * s, 0.06 * s, 0.3 * s),
+        bladeMat
+      );
+      blade.position.set(0.6 * s, 3.8 * s, -0.1 * s);
+      group.add(blade);
+    }
+
+    // Juggernaut: armor plates
+    if (cfg === NPC_TYPES.juggernaut) {
+      const armorMat = new THREE.MeshStandardMaterial({
+        color: 0x556677, metalness: 0.7, roughness: 0.3,
+      });
+      // Chest plate
+      const chest = new THREE.Mesh(
+        new THREE.BoxGeometry(1.3 * s, 1.5 * s, 0.15 * s),
+        armorMat
+      );
+      chest.position.set(0, 2.0 * s, 0.4 * s);
+      group.add(chest);
+
+      // Shoulder plates
+      const shPadGeo = new THREE.BoxGeometry(0.7 * s, 0.4 * s, 0.6 * s);
+      const lSh = new THREE.Mesh(shPadGeo, armorMat);
+      lSh.position.set(-0.9 * s, 2.8 * s, 0);
+      const rSh = new THREE.Mesh(shPadGeo, armorMat);
+      rSh.position.set(0.9 * s, 2.8 * s, 0);
+      group.add(lSh, rSh);
+    }
+
+    // Banshee: ghostly glow aura
+    if (isBanshee) {
+      const auraMat = new THREE.MeshStandardMaterial({
+        color: 0x44ccff, emissive: 0x44ccff, emissiveIntensity: 0.6,
+        transparent: true, opacity: 0.15,
+      });
+      const aura = new THREE.Mesh(
+        new THREE.SphereGeometry(1.5 * s, 12, 12),
+        auraMat
+      );
+      aura.position.set(0, 2.0 * s, 0);
+      group.add(aura);
+    }
+
+    // Weakness icon for rare/unique
+    if (cfg.weakness) {
+      const icon = this.createWeaknessIcon(cfg.weakness);
+      icon.position.set(0, (3.8 + 1.8) * s, 0);
+      group.add(icon);
+    }
+
+    const label = this.createLevelLabel(level, isBoss, tier);
     label.position.set(0, (3.8 + 1.2) * s, 0);
     group.add(label);
 
@@ -276,9 +459,60 @@ export class NPCManager {
     group.userData.rightArm = rightArm;
     group.userData.leftLeg = leftLeg;
     group.userData.rightLeg = rightLeg;
-    group.userData.hpBarWidth = 1.18 * s;
+    group.userData.hpBarWidth = (hpW - 0.04);
+    group.userData.isBoss = isBoss;
+    group.userData.tier = tier;
+    group.userData.isNPC = true;
+    group.traverse(c => { c.userData.isNPC = true; });
 
     return group;
+  }
+
+  _cfgToType(cfg) {
+    for (const [key, val] of Object.entries(NPC_TYPES)) {
+      if (val === cfg) return key;
+    }
+    return 'normal';
+  }
+
+  createWeaknessIcon(weakness) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+
+    ctx.clearRect(0, 0, 64, 64);
+
+    // Background circle
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.beginPath();
+    ctx.arc(32, 32, 28, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = weakness === 'melee' ? '#ff6644' : '#44aaff';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 28px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    if (weakness === 'melee') {
+      // Knife icon (unicode dagger)
+      ctx.fillText('\u2694', 32, 32);
+    } else {
+      // Pistol icon (unicode)
+      ctx.fillText('\uD83D\uDD2B', 32, 32);
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+    const sprite = new THREE.Sprite(spriteMat);
+    sprite.scale.set(1.0, 1.0, 1);
+    sprite.name = 'weaknessIcon';
+    return sprite;
   }
 
   update(delta, playerPos) {
@@ -324,8 +558,19 @@ export class NPCManager {
       if (hpFill) {
         const scale = npc.health / npc.maxHealth;
         hpFill.scale.x = Math.max(0, scale);
-        const barW = npc.mesh.userData.hpBarWidth || 1.18;
+        const barW = npc.mesh.userData.hpBarWidth || 1.46;
         hpFill.position.x = -(barW * (1 - scale)) / 2;
+
+        // Dynamic color based on HP% (skip for boss, rare, unique)
+        if (!npc.mesh.userData.isBoss && npc.mesh.userData.tier === 'normal') {
+          const pct = scale * 100;
+          let color;
+          if (pct > 50) color = 0x00e676;       // green
+          else if (pct > 25) color = 0xffca28;   // yellow
+          else color = 0xff3d00;                  // red
+          hpFill.material.color.setHex(color);
+          hpFill.material.emissive.setHex(color);
+        }
       }
     }
   }
@@ -368,6 +613,17 @@ export class NPCManager {
 
     let nx = npc.mesh.position.x + dir.x * speed * delta;
     let nz = npc.mesh.position.z + dir.z * speed * delta;
+
+    // Prevent zombies from entering safe zone
+    const sdx = nx - SAFE_ZONE.X;
+    const sdz = nz - SAFE_ZONE.Z;
+    const safeDist = Math.sqrt(sdx * sdx + sdz * sdz);
+    const safeR = SAFE_ZONE.RADIUS + 1;
+    if (safeDist < safeR) {
+      const pushAngle = Math.atan2(sdx, sdz);
+      nx = SAFE_ZONE.X + Math.sin(pushAngle) * safeR;
+      nz = SAFE_ZONE.Z + Math.cos(pushAngle) * safeR;
+    }
 
     if (this.map) {
       const r = npc.isBoss ? 2.0 : 0.8;
@@ -424,6 +680,7 @@ export class NPCManager {
 
     if (npc.health <= 0) {
       npc.alive = false;
+      this.totalKillCount++;
       if (this.sound) this.sound.playZombieDeath();
       this.scene.remove(npc.mesh);
 
@@ -443,6 +700,8 @@ export class NPCManager {
 
         npc.type = newType;
         npc.typeName = cfg.name;
+        npc.tier = cfg.tier || 'normal';
+        npc.weakness = cfg.weakness || null;
         npc.level = lvl;
         npc.health = Math.floor(cfg.health * hpMul);
         npc.maxHealth = npc.health;

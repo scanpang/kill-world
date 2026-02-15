@@ -1,6 +1,6 @@
 // client/src/game/WeaponSystem.js
 import * as THREE from 'three';
-import { WEAPONS, WEAPON_SLOTS, NPC_TYPES } from '../../../shared/constants.js';
+import { WEAPONS, WEAPON_SLOTS, NPC_TYPES, WEAKNESS_DAMAGE_MULTIPLIER } from '../../../shared/constants.js';
 
 export class WeaponSystem {
   constructor(sceneManager, player) {
@@ -53,6 +53,13 @@ export class WeaponSystem {
     const base = WEAPONS[weaponId] ? WEAPONS[weaponId].maxAmmo : 0;
     if (base === Infinity) return Infinity;
     return Math.floor(base * (1 + this.player.magBonus));
+  }
+
+  // Get effective fire rate considering fire rate bonus
+  getEffectiveFireRate() {
+    const base = this.config.fireRate;
+    const reduction = Math.min(this.player.fireRateBonus, 0.7); // cap at 70% reduction
+    return base * (1 - reduction);
   }
 
   /* ── Weapon Models ── */
@@ -186,6 +193,303 @@ export class WeaponSystem {
         gun.add(barrel, muzzle, body, core, grip);
         break;
       }
+      case 'RocketLauncher': {
+        const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.65, 8), mat(0x3a3a2a));
+        tube.rotation.x = Math.PI / 2;
+        tube.position.z = -0.35;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.3), mat(0x444444));
+        body.position.set(0, -0.02, 0.0);
+        const grip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.16, 0.06), mat(0x5c3a1e));
+        grip.position.set(0, -0.14, 0.06);
+        const sight = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.08, 0.04), mat(0x666666));
+        sight.position.set(0, 0.08, -0.1);
+        const muzzle = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.07, 0.05, 0.06, 8),
+          new THREE.MeshStandardMaterial({ color: 0xff4400, emissive: 0xff4400, emissiveIntensity: 0.5 })
+        );
+        muzzle.rotation.x = Math.PI / 2;
+        muzzle.position.z = -0.68;
+        gun.add(tube, body, grip, sight, muzzle);
+        break;
+      }
+      // ── Slot 0 Rare ──
+      case 'BasicGunRare': {
+        const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.55), mat(0x224466));
+        barrel.position.z = -0.35;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.14, 0.3), mat(0x335577));
+        body.position.set(0, -0.04, -0.1);
+        const stock = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 0.15), mat(0x3a5a8e));
+        stock.position.set(0, -0.02, 0.12);
+        const mag = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.12, 0.04), mat(0x2a4466));
+        mag.position.set(0, -0.13, -0.05);
+        gun.add(barrel, body, stock, mag);
+        break;
+      }
+      case 'MinigunRare': {
+        for (let i = 0; i < 4; i++) {
+          const b = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.5, 6), mat(0x2a4466));
+          b.rotation.x = Math.PI / 2;
+          const angle = (i / 4) * Math.PI * 2;
+          b.position.set(Math.cos(angle) * 0.04, Math.sin(angle) * 0.04, -0.35);
+          gun.add(b);
+        }
+        const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.2, 8), mat(0x335577));
+        housing.rotation.x = Math.PI / 2; housing.position.z = -0.08;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.16, 0.22), mat(0x446688));
+        body.position.set(0, -0.04, 0.06);
+        gun.add(housing, body);
+        break;
+      }
+      case 'ShotgunRare': {
+        const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.65), mat(0x2a4466));
+        barrel.position.z = -0.4;
+        const pump = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.06, 0.12), mat(0x3a5a8e));
+        pump.position.set(0, -0.05, -0.2);
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.12, 0.25), mat(0x335577));
+        body.position.set(0, -0.02, 0.0);
+        const stock = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 0.2), mat(0x3a5a8e));
+        stock.position.set(0, -0.01, 0.17);
+        gun.add(barrel, pump, body, stock);
+        break;
+      }
+      // ── Slot 0 Legendary ──
+      case 'GoldAssault': {
+        const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.55), mat(0xaa8822));
+        barrel.position.z = -0.35;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.14, 0.3), mat(0xcc9933));
+        body.position.set(0, -0.04, -0.1);
+        const stock = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 0.15), mat(0xddaa44));
+        stock.position.set(0, -0.02, 0.12);
+        const mag = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.12, 0.04), mat(0xbb8833));
+        mag.position.set(0, -0.13, -0.05);
+        const glow = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.08),
+          new THREE.MeshStandardMaterial({ color: 0xffcc00, emissive: 0xffcc00, emissiveIntensity: 0.6 }));
+        glow.position.z = -0.62;
+        gun.add(barrel, body, stock, mag, glow);
+        break;
+      }
+      case 'HellMinigun': {
+        for (let i = 0; i < 4; i++) {
+          const b = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.5, 6), mat(0x882200));
+          b.rotation.x = Math.PI / 2;
+          const angle = (i / 4) * Math.PI * 2;
+          b.position.set(Math.cos(angle) * 0.04, Math.sin(angle) * 0.04, -0.35);
+          gun.add(b);
+        }
+        const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.2, 8), mat(0xaa4400));
+        housing.rotation.x = Math.PI / 2; housing.position.z = -0.08;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.16, 0.22), mat(0xcc5500));
+        body.position.set(0, -0.04, 0.06);
+        const glow = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.06),
+          new THREE.MeshStandardMaterial({ color: 0xff4400, emissive: 0xff4400, emissiveIntensity: 0.8 }));
+        glow.position.z = -0.6;
+        gun.add(housing, body, glow);
+        break;
+      }
+      case 'DoomShotgun': {
+        const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.7), mat(0x882200));
+        barrel.position.z = -0.42;
+        const pump = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.07, 0.14), mat(0xaa4400));
+        pump.position.set(0, -0.05, -0.22);
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.13, 0.28), mat(0xcc5500));
+        body.position.set(0, -0.02, 0.0);
+        const stock = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.11, 0.22), mat(0xddaa44));
+        stock.position.set(0, -0.01, 0.18);
+        const glow = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.06),
+          new THREE.MeshStandardMaterial({ color: 0xff6600, emissive: 0xff6600, emissiveIntensity: 0.7 }));
+        glow.position.z = -0.76;
+        gun.add(barrel, pump, body, stock, glow);
+        break;
+      }
+      // ── Slot 1 Rare ──
+      case 'RevolverRare': {
+        const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.35), mat(0x446688));
+        barrel.position.z = -0.25;
+        const cylinder = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.08, 8), mat(0x5577aa));
+        cylinder.rotation.x = Math.PI / 2; cylinder.position.set(0, 0, -0.06);
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.1, 0.15), mat(0x335577));
+        body.position.set(0, -0.04, 0.0);
+        const grip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.16, 0.06), mat(0x3a5a8e));
+        grip.position.set(0, -0.14, 0.04); grip.rotation.x = -0.15;
+        gun.add(barrel, cylinder, body, grip);
+        break;
+      }
+      case 'GlockRare': {
+        const slide = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.28), mat(0x224466));
+        slide.position.z = -0.18;
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.1, 0.18), mat(0x335577));
+        frame.position.set(0, -0.05, -0.06);
+        const grip = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.14, 0.06), mat(0x2a4466));
+        grip.position.set(0, -0.12, 0.02);
+        gun.add(slide, frame, grip);
+        break;
+      }
+      // ── Slot 1 Legendary ──
+      case 'DesertKing': {
+        const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.4), mat(0xcc9933));
+        barrel.position.z = -0.28;
+        const cylinder = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.09, 8), mat(0xddaa44));
+        cylinder.rotation.x = Math.PI / 2; cylinder.position.set(0, 0, -0.06);
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.18), mat(0xaa8822));
+        body.position.set(0, -0.04, 0.02);
+        const grip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.06), mat(0x886622));
+        grip.position.set(0, -0.15, 0.06); grip.rotation.x = -0.15;
+        const glow = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.06),
+          new THREE.MeshStandardMaterial({ color: 0xffcc00, emissive: 0xffcc00, emissiveIntensity: 0.6 }));
+        glow.position.z = -0.48;
+        gun.add(barrel, cylinder, body, grip, glow);
+        break;
+      }
+      case 'BlazeGlock': {
+        const slide = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.3), mat(0xcc4400));
+        slide.position.z = -0.2;
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.1, 0.2), mat(0xaa3300));
+        frame.position.set(0, -0.05, -0.06);
+        const grip = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.14, 0.06), mat(0x882200));
+        grip.position.set(0, -0.12, 0.02);
+        const glow = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.04),
+          new THREE.MeshStandardMaterial({ color: 0xff6600, emissive: 0xff6600, emissiveIntensity: 0.8 }));
+        glow.position.z = -0.35;
+        gun.add(slide, frame, grip, glow);
+        break;
+      }
+      // ── Slot 2 Rare ──
+      case 'KnifeRare': {
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.48), mat(0x6688bb));
+        blade.position.z = -0.3;
+        const guard = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.06, 0.03), mat(0x4466aa));
+        guard.position.set(0, 0, -0.05);
+        const handle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.14), mat(0x3a5a8e));
+        handle.position.set(0, 0, 0.05);
+        gun.add(blade, guard, handle);
+        break;
+      }
+      case 'AxeRare': {
+        const handle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.58), mat(0x3a5a8e));
+        handle.position.z = -0.27;
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.2, 0.09), mat(0x4466aa));
+        head.position.set(0, 0.02, -0.52);
+        const edge = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.16, 0.03), mat(0x6688bb));
+        edge.position.set(0, 0.02, -0.56);
+        gun.add(handle, head, edge);
+        break;
+      }
+      // ── Slot 2 Legendary ──
+      case 'BloodBlade': {
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, 0.52),
+          new THREE.MeshStandardMaterial({ color: 0xcc2222, emissive: 0xcc0000, emissiveIntensity: 0.4 }));
+        blade.position.z = -0.32;
+        const guard = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.07, 0.03), mat(0xaa0000));
+        guard.position.set(0, 0, -0.05);
+        const handle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.14), mat(0x660000));
+        handle.position.set(0, 0, 0.05);
+        gun.add(blade, guard, handle);
+        break;
+      }
+      case 'WorldBreaker': {
+        const handle = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.6), mat(0x886622));
+        handle.position.z = -0.28;
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.24, 0.12),
+          new THREE.MeshStandardMaterial({ color: 0xddaa44, emissive: 0xffaa00, emissiveIntensity: 0.5 }));
+        head.position.set(0, 0.02, -0.54);
+        const edge = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.18, 0.04),
+          new THREE.MeshStandardMaterial({ color: 0xffcc44, emissive: 0xffcc00, emissiveIntensity: 0.4 }));
+        edge.position.set(0, 0.02, -0.58);
+        gun.add(handle, head, edge);
+        break;
+      }
+      // ── Slot 3 Rare ──
+      case 'RailgunRare': {
+        const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.6), mat(0x3366aa));
+        barrel.position.z = -0.4;
+        const glow = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.08),
+          new THREE.MeshStandardMaterial({ color: 0x66bbff, emissive: 0x66bbff, emissiveIntensity: 0.9 }));
+        glow.position.z = -0.68;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.12, 0.25), mat(0x4477aa));
+        body.position.set(0, -0.02, -0.1);
+        const coil1 = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.012, 6, 8), mat(0x66bbff));
+        coil1.position.z = -0.25;
+        const coil2 = coil1.clone(); coil2.position.z = -0.4;
+        const grip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.14, 0.06), mat(0x2a4488));
+        grip.position.set(0, -0.13, 0.04);
+        gun.add(barrel, glow, body, coil1, coil2, grip);
+        break;
+      }
+      case 'PlasmaMK2': {
+        const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.45), mat(0x5500aa));
+        barrel.position.z = -0.3;
+        const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8),
+          new THREE.MeshStandardMaterial({ color: 0xdd44ff, emissive: 0xdd44ff, emissiveIntensity: 0.9 }));
+        muzzle.position.z = -0.52;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.22), mat(0x4400aa));
+        body.position.set(0, -0.03, -0.05);
+        const grip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.14, 0.06), mat(0x330066));
+        grip.position.set(0, -0.13, 0.05);
+        gun.add(barrel, muzzle, body, grip);
+        break;
+      }
+      case 'RocketRare': {
+        const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, 0.7, 8), mat(0x4a5a3a));
+        tube.rotation.x = Math.PI / 2; tube.position.z = -0.38;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.3), mat(0x556644));
+        body.position.set(0, -0.02, 0.0);
+        const grip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.16, 0.06), mat(0x3a5a2e));
+        grip.position.set(0, -0.14, 0.06);
+        const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.05, 0.06, 8),
+          new THREE.MeshStandardMaterial({ color: 0xff6600, emissive: 0xff6600, emissiveIntensity: 0.6 }));
+        muzzle.rotation.x = Math.PI / 2; muzzle.position.z = -0.72;
+        gun.add(tube, body, grip, muzzle);
+        break;
+      }
+      // ── Slot 3 Legendary ──
+      case 'ZeusRailgun': {
+        const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.65), mat(0xcc9933));
+        barrel.position.z = -0.42;
+        const glow = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.1),
+          new THREE.MeshStandardMaterial({ color: 0xffdd44, emissive: 0xffdd44, emissiveIntensity: 1.0 }));
+        glow.position.z = -0.72;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.13, 0.28), mat(0xddaa44));
+        body.position.set(0, -0.02, -0.1);
+        const coil1 = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.015, 6, 8),
+          new THREE.MeshStandardMaterial({ color: 0xffee66, emissive: 0xffee66, emissiveIntensity: 0.6 }));
+        coil1.position.z = -0.25;
+        const coil2 = coil1.clone(); coil2.position.z = -0.4;
+        const grip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.14, 0.06), mat(0xaa8822));
+        grip.position.set(0, -0.13, 0.04);
+        gun.add(barrel, glow, body, coil1, coil2, grip);
+        break;
+      }
+      case 'PlasmaOverload': {
+        const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.5), mat(0x8800cc));
+        barrel.position.z = -0.32;
+        const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8),
+          new THREE.MeshStandardMaterial({ color: 0xff44ff, emissive: 0xff44ff, emissiveIntensity: 1.0 }));
+        muzzle.position.z = -0.56;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.15, 0.24), mat(0x6600aa));
+        body.position.set(0, -0.03, -0.05);
+        const core = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8),
+          new THREE.MeshStandardMaterial({ color: 0xff88ff, emissive: 0xff88ff, emissiveIntensity: 0.8 }));
+        core.position.set(0, 0.02, -0.05);
+        const grip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.14, 0.06), mat(0x440066));
+        grip.position.set(0, -0.13, 0.05);
+        gun.add(barrel, muzzle, body, core, grip);
+        break;
+      }
+      case 'DoomBringer': {
+        const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.7, 8), mat(0x882200));
+        tube.rotation.x = Math.PI / 2; tube.position.z = -0.38;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.32), mat(0xaa4400));
+        body.position.set(0, -0.02, 0.0);
+        const grip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.06), mat(0x660000));
+        grip.position.set(0, -0.16, 0.06);
+        const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.06, 0.08, 8),
+          new THREE.MeshStandardMaterial({ color: 0xff2200, emissive: 0xff2200, emissiveIntensity: 0.8 }));
+        muzzle.rotation.x = Math.PI / 2; muzzle.position.z = -0.72;
+        const sight = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.1, 0.04), mat(0xffaa00));
+        sight.position.set(0, 0.1, -0.1);
+        gun.add(tube, body, grip, muzzle, sight);
+        break;
+      }
       default: {
         const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.4), mat(0x333333));
         barrel.position.z = -0.28;
@@ -199,7 +503,42 @@ export class WeaponSystem {
     gun.position.set(0.28, -0.22, -0.45);
     gun.userData.isPlayerGun = true;
     gun.traverse(c => { c.userData.isPlayerGun = true; });
+
+    // Apply power glow effect
+    this.applyPowerGlow(gun);
+
     return gun;
+  }
+
+  /* ── Power Glow Effect ── */
+  applyPowerGlow(gunGroup) {
+    const level = this.player.getPowerLevel();
+    if (level <= 0) return;
+
+    let emissiveColor, intensity;
+    if (level <= 2) {
+      emissiveColor = 0x4488ff; intensity = 0.2;
+    } else if (level <= 4) {
+      emissiveColor = 0x8844ff; intensity = 0.4;
+    } else if (level <= 6) {
+      emissiveColor = 0xff8800; intensity = 0.6;
+    } else {
+      emissiveColor = 0xff2200; intensity = 0.8;
+    }
+
+    gunGroup.traverse(c => {
+      if (c.isMesh && c.material && c.material.isMeshStandardMaterial) {
+        // Don't override already-emissive parts (e.g. Railgun coils)
+        if (c.material.emissiveIntensity > 0.3) return;
+        c.material = c.material.clone();
+        c.material.emissive = new THREE.Color(emissiveColor);
+        c.material.emissiveIntensity = intensity;
+      }
+    });
+  }
+
+  refreshGlow() {
+    this.applyPowerGlow(this.gunModel);
   }
 
   setupInput() {
@@ -259,8 +598,11 @@ export class WeaponSystem {
     if (this.isReloading || this.currentAmmo <= 0 || this.player.isDead) return;
     if (!this.isMobile && !document.pointerLockElement) return;
 
+    // Block shooting in safe zone
+    if (this.player.isInSafeZone()) return;
+
     const now = performance.now();
-    if (now - this.lastShotTime < this.config.fireRate) return;
+    if (now - this.lastShotTime < this.getEffectiveFireRate()) return;
     this.lastShotTime = now;
     this.currentAmmo--;
     this.slotAmmo[this.currentWeaponId] = this.currentAmmo;
@@ -275,7 +617,13 @@ export class WeaponSystem {
     } else {
       this.fireRay();
       this.applyRecoil();
-      if (this.sound) this.sound.playGunshot(this.currentWeaponId);
+      if (this.sound) {
+        if (this.config.explosive) {
+          this.sound.playExplosion();
+        } else {
+          this.sound.playGunshot(this.currentWeaponId);
+        }
+      }
     }
   }
 
@@ -283,7 +631,7 @@ export class WeaponSystem {
     if (!this.game) return;
     const npcManager = this.game.npcManager;
     const baseDamage = this.config.damage;
-    let damage = Math.floor(baseDamage * this.player.damageMultiplier);
+    let damage = Math.floor(baseDamage * this.player.damageMultiplier * (1 + this.player.damageBonus));
 
     // Crit chance
     if (this.player.critChance > 0 && Math.random() < this.player.critChance) {
@@ -299,19 +647,26 @@ export class WeaponSystem {
       const dist = Math.sqrt(dx * dx + dz * dz);
 
       if (dist < this.config.range) {
-        // Shield zombie front damage reduction for melee
+        // Weakness bonus: melee weapons vs melee-weak enemies
+        let isWeakness = false;
+        if (npc.weakness === 'melee') {
+          damage = Math.floor(damage * WEAKNESS_DAMAGE_MULTIPLIER);
+          isWeakness = true;
+        }
+
+        // Shield zombie front damage reduction for melee (30%)
         if (npc.type === 'shield') {
           const nfx = Math.sin(npc.mesh.rotation.y);
           const nfz = Math.cos(npc.mesh.rotation.y);
           const dn = Math.sqrt(dx * dx + dz * dz);
           if (dn > 0) {
             const dot = (dx / dn) * nfx + (dz / dn) * nfz;
-            if (dot < -0.3) damage = Math.floor(damage * 0.5);
+            if (dot < -0.3) damage = Math.floor(damage * 0.7);
           }
         }
 
         npcManager.damageNPC(i, damage);
-        this.game.hud.showHitMarker(false);
+        this.game.hud.showHitMarker(false, false, isWeakness);
         if (npc.health <= 0) {
           this.game.onNPCKill(i);
         }
@@ -335,10 +690,30 @@ export class WeaponSystem {
     const origin = this.camera.getWorldPosition(new THREE.Vector3());
 
     const baseDamage = this.config.damage;
-    const damageMultiplier = this.player.damageMultiplier;
+    const damageMultiplier = this.player.damageMultiplier * (1 + this.player.damageBonus);
 
+    // Step 1: Check wall/environment hit distance FIRST
+    let wallHitDist = this.config.range;
+    let wallHitPoint = null;
+    this.raycaster.set(origin, direction);
+    this.raycaster.far = this.config.range;
+    const intersects = this.raycaster.intersectObjects(this.scene.scene.children, true);
+    for (const hit of intersects) {
+      let obj = hit.object;
+      let skip = false;
+      while (obj) {
+        if (obj.userData && (obj.userData.isEffect || obj.userData.isPlayerGun || obj.userData.isNPC)) { skip = true; break; }
+        obj = obj.parent;
+      }
+      if (skip) continue;
+      wallHitDist = hit.distance;
+      wallHitPoint = hit.point.clone();
+      break;
+    }
+
+    // Step 2: Check NPC hits (only if closer than wall)
     let hitNPC = null;
-    let hitDist = this.config.range;
+    let hitDist = wallHitDist; // limit to wall distance
 
     if (this.game) {
       const npcManager = this.game.npcManager;
@@ -400,51 +775,138 @@ export class WeaponSystem {
         isCrit = true;
       }
 
-      // Shield zombie: 50% reduced damage from front
+      // Weakness bonus: pistol slot vs pistol-weak enemies
+      let isWeakness = false;
+      if (npc.weakness === 'pistol' && this.currentSlot === 1) {
+        damage = Math.floor(damage * WEAKNESS_DAMAGE_MULTIPLIER);
+        isWeakness = true;
+      }
+
+      // Shield zombie: 30% reduced damage from front (nerfed from 50%)
       if (npc.type === 'shield') {
         const dx = direction.x, dz = direction.z;
         const nfx = Math.sin(npc.mesh.rotation.y);
         const nfz = Math.cos(npc.mesh.rotation.y);
         const dot = dx * nfx + dz * nfz;
         if (dot < -0.3) {
-          damage = Math.floor(damage * 0.5);
+          damage = Math.floor(damage * 0.7);
         }
       }
 
-      this.game.npcManager.damageNPC(index, damage);
-      this.game.hud.showHitMarker(isHeadshot, isCrit);
+      // Explosive weapons: area damage
+      if (this.config.explosive && this.game) {
+        this.applyExplosion(hitPoint, damage, damageMultiplier);
+      } else {
+        this.game.npcManager.damageNPC(index, damage);
+        if (npc.health <= 0) {
+          this.game.onNPCKill(index);
+        }
+      }
+
+      this.game.hud.showHitMarker(isHeadshot, isCrit, isWeakness);
 
       // Headshot bonus XP
       if (isHeadshot && this.game) {
         this.game.onHeadshotXP();
       }
 
-      if (npc.health <= 0) {
-        this.game.onNPCKill(index);
-      }
       return;
     }
 
-    // No NPC hit
-    this.raycaster.set(origin, direction);
-    this.raycaster.far = this.config.range;
-    const intersects = this.raycaster.intersectObjects(this.scene.scene.children, true);
-    for (const hit of intersects) {
-      let obj = hit.object;
-      let skip = false;
-      while (obj) {
-        if (obj.userData && (obj.userData.isEffect || obj.userData.isPlayerGun)) { skip = true; break; }
-        obj = obj.parent;
+    // No NPC hit - show wall impact or endpoint
+    if (wallHitPoint) {
+      this.createTracer(origin, wallHitPoint);
+      this.createImpact(wallHitPoint);
+      // Explosive weapons: explode on wall too
+      if (this.config.explosive && this.game) {
+        this.applyExplosion(wallHitPoint, baseDamage, damageMultiplier);
       }
-      if (skip) continue;
+    } else {
+      const endpoint = origin.clone().addScaledVector(direction, this.config.range);
+      this.createTracer(origin, endpoint);
+    }
+  }
 
-      this.createTracer(origin, hit.point);
-      this.createImpact(hit.point);
-      return;
+  /* ── Explosion (Rocket Launcher AOE) ── */
+  applyExplosion(center, directDamage, damageMultiplier) {
+    const radius = this.config.explosionRadius || 8;
+    const npcManager = this.game.npcManager;
+
+    // Visual explosion effect
+    this.createExplosionEffect(center, radius);
+
+    // Damage all NPCs in radius
+    const killList = [];
+    for (let i = 0; i < npcManager.npcs.length; i++) {
+      const npc = npcManager.npcs[i];
+      if (!npc.alive) continue;
+
+      const dx = npc.mesh.position.x - center.x;
+      const dz = npc.mesh.position.z - center.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+
+      if (dist <= radius) {
+        // Linear falloff: 100% at center, 30% at edge
+        const falloff = 1.0 - (dist / radius) * 0.7;
+        const aoeDamage = Math.floor(directDamage * damageMultiplier * falloff);
+        npcManager.damageNPC(i, aoeDamage);
+        if (npc.health <= 0) {
+          killList.push(i);
+        }
+      }
     }
 
-    const endpoint = origin.clone().addScaledVector(direction, this.config.range);
-    this.createTracer(origin, endpoint);
+    // Process kills
+    for (const idx of killList) {
+      this.game.onNPCKill(idx);
+    }
+  }
+
+  createExplosionEffect(position, radius) {
+    // Expanding sphere effect
+    const geo = new THREE.SphereGeometry(0.5, 12, 12);
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xff6600, transparent: true, opacity: 0.8,
+    });
+    const sphere = new THREE.Mesh(geo, mat);
+    sphere.position.copy(position);
+    sphere.userData.isEffect = true;
+    this.scene.add(sphere);
+
+    // Inner bright core
+    const coreMat = new THREE.MeshBasicMaterial({
+      color: 0xffcc00, transparent: true, opacity: 0.9,
+    });
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), coreMat);
+    core.position.copy(position);
+    core.userData.isEffect = true;
+    this.scene.add(core);
+
+    // Animate expansion
+    const startTime = performance.now();
+    const maxScale = radius * 0.6;
+    const duration = 400;
+
+    const animate = () => {
+      const elapsed = performance.now() - startTime;
+      const t = Math.min(elapsed / duration, 1);
+
+      const scale = 0.5 + t * maxScale;
+      sphere.scale.setScalar(scale);
+      core.scale.setScalar(scale * 0.5);
+      mat.opacity = 0.8 * (1 - t);
+      coreMat.opacity = 0.9 * (1 - t);
+
+      if (t < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        this.scene.remove(sphere);
+        this.scene.remove(core);
+        geo.dispose(); mat.dispose();
+        coreMat.dispose();
+      }
+    };
+    requestAnimationFrame(animate);
   }
 
   createTracer(from, to) {

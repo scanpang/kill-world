@@ -20,32 +20,66 @@ export class HUD {
     this.levelEl = document.getElementById('player-level');
     this.xpFillEl = document.getElementById('xp-fill');
     this.comboEl = document.getElementById('combo-counter');
+    this.stageInfoEl = document.getElementById('stage-info');
     this.shopOpen = false;
     this.shopAvailable = false; // Only available after boss kill
     this.game = null;
+    this.purchaseCounts = {}; // track consumable purchase counts
 
     this.buildShopItems();
     this.setupShop();
+  }
+
+  getItemPrice(item) {
+    if (item.category !== 'consumable') return item.price;
+    const count = this.purchaseCounts[item.id] || 0;
+    return Math.floor(item.price * Math.pow(1.5, count));
   }
 
   buildShopItems() {
     const container = document.getElementById('shop-items');
     if (!container) return;
     container.innerHTML = '';
-    for (const item of SHOP_ITEMS) {
-      const div = document.createElement('div');
-      div.className = 'shop-item';
-      div.dataset.id = item.id;
-      div.innerHTML = `
-        <div class="shop-icon">${getWeaponIcon(item.id)}</div>
-        <div class="shop-info">
-          <div class="shop-name">${item.name}</div>
-          <div class="shop-desc">${item.desc}</div>
-        </div>
-        <span class="shop-price">$${item.price}</span>
-        <button class="shop-buy-btn" data-id="${item.id}">구매</button>
-      `;
-      container.appendChild(div);
+
+    const sections = [
+      { label: '주무기', filter: i => i.category === 'weapon' && i.slot === 0 },
+      { label: '보조무기', filter: i => i.category === 'weapon' && i.slot === 1 },
+      { label: '근접무기', filter: i => i.category === 'weapon' && i.slot === 2 },
+      { label: '소모품', filter: i => i.category === 'consumable' },
+    ];
+
+    for (const sec of sections) {
+      const items = SHOP_ITEMS.filter(sec.filter);
+      if (items.length === 0) continue;
+
+      const header = document.createElement('div');
+      header.className = 'shop-section-header';
+      header.textContent = `${sec.label} (${items.length})`;
+      container.appendChild(header);
+
+      for (const item of items) {
+        const div = document.createElement('div');
+        div.className = 'shop-item';
+        div.dataset.id = item.id;
+        if (item.tier) div.dataset.tier = item.tier;
+        const tierBadge = item.tier === 'legendary' ? '<span class="tier-badge legendary">★ 전설</span>'
+                        : item.tier === 'rare' ? '<span class="tier-badge rare">◆ 레어</span>'
+                        : '';
+        const price = this.getItemPrice(item);
+        const countLabel = item.category === 'consumable' && this.purchaseCounts[item.id]
+          ? `<span class="shop-bought-count">x${this.purchaseCounts[item.id]}</span>` : '';
+        div.innerHTML = `
+          <div class="shop-icon">${getWeaponIcon(item.id)}</div>
+          <div class="shop-info">
+            <div class="shop-name">${item.name} ${tierBadge}</div>
+            <div class="shop-desc">${item.desc}</div>
+          </div>
+          ${countLabel}
+          <span class="shop-price" data-id="${item.id}">$${price}</span>
+          <button class="shop-buy-btn" data-id="${item.id}">구매</button>
+        `;
+        container.appendChild(div);
+      }
     }
   }
 
@@ -124,7 +158,12 @@ export class HUD {
     if (this.shopCoinsEl) this.shopCoinsEl.textContent = `$${coins}`;
     document.querySelectorAll('.shop-item').forEach(el => {
       const item = SHOP_ITEMS.find(i => i.id === el.dataset.id);
-      if (item) el.classList.toggle('too-expensive', coins < item.price);
+      if (!item) return;
+      const price = this.getItemPrice(item);
+      el.classList.toggle('too-expensive', coins < price);
+      // Update displayed price for consumables
+      const priceEl = el.querySelector('.shop-price');
+      if (priceEl) priceEl.textContent = `$${price}`;
     });
   }
 
@@ -132,10 +171,11 @@ export class HUD {
     if (!this.game) return;
     const shopItem = SHOP_ITEMS.find(i => i.id === itemId);
     if (!shopItem) return;
-    if (this.game.player.coins < shopItem.price) return;
+    const price = this.getItemPrice(shopItem);
+    if (this.game.player.coins < price) return;
 
     // Step 1: Always ask "구매하시겠습니까?"
-    this.showConfirmDialog(`${shopItem.name} 구매하시겠습니까?`, () => {
+    this.showConfirmDialog(`${shopItem.name} 구매하시겠습니까? ($${price})`, () => {
       // Step 2: If weapon with same slot exists, warn about deletion
       const weaponConfig = WEAPONS[itemId];
       if (weaponConfig && shopItem.category === 'weapon') {
@@ -155,7 +195,8 @@ export class HUD {
   }
 
   executeBuy(itemId, shopItem) {
-    this.game.player.coins -= shopItem.price;
+    const price = this.getItemPrice(shopItem);
+    this.game.player.coins -= price;
 
     switch (itemId) {
       case 'HealthPack':
@@ -178,6 +219,14 @@ export class HUD {
       case 'CritUp':
         this.game.player.critChance += 0.05;
         break;
+      case 'FireRateUp':
+        this.game.player.fireRateBonus += 0.1;
+        this.game.weapons.refreshGlow();
+        break;
+      case 'DamageUp':
+        this.game.player.damageBonus += 0.1;
+        this.game.weapons.refreshGlow();
+        break;
       default: {
         const weaponConfig = WEAPONS[itemId];
         if (weaponConfig) {
@@ -188,6 +237,12 @@ export class HUD {
         }
         break;
       }
+    }
+
+    // Increment purchase count for consumables (escalating price)
+    if (shopItem.category === 'consumable') {
+      this.purchaseCounts[itemId] = (this.purchaseCounts[itemId] || 0) + 1;
+      this.buildShopItems(); // rebuild to show updated prices & counts
     }
 
     this.updateShopAffordability();
@@ -217,6 +272,39 @@ export class HUD {
     dialog.querySelector('.confirm-no').addEventListener('click', () => {
       dialog.remove();
     });
+  }
+
+  showWeaponReplaceDialog(currentName, newName, onYes, onNo) {
+    const old = document.getElementById('weapon-replace-dialog');
+    if (old) old.remove();
+
+    const dialog = document.createElement('div');
+    dialog.id = 'weapon-replace-dialog';
+    dialog.innerHTML = `
+      <div class="replace-msg">현재 ${currentName}을(를)<br>${newName}(으)로 교체하시겠습니까?</div>
+      <div class="replace-btns">
+        <button class="replace-yes">YES</button>
+        <button class="replace-no">NO</button>
+      </div>
+    `;
+    document.body.appendChild(dialog);
+
+    dialog.querySelector('.replace-yes').addEventListener('click', () => {
+      dialog.remove();
+      onYes();
+    });
+    dialog.querySelector('.replace-no').addEventListener('click', () => {
+      dialog.remove();
+      onNo();
+    });
+
+    // Auto-close after 10 seconds
+    setTimeout(() => {
+      if (dialog.parentNode) {
+        dialog.remove();
+        onNo();
+      }
+    }, 10000);
   }
 
   showBuyFeedback(name) {
@@ -284,7 +372,8 @@ export class HUD {
   }
 
   update({ health, maxHealth, ammo, maxAmmo, playerCount, coins, weaponName,
-           currentSlot, isReloading, weaponId, level, xp, xpToNext, damageBonus, wave }) {
+           currentSlot, isReloading, weaponId, level, xp, xpToNext, damageBonus, wave,
+           bossKills, totalKills, slots }) {
     const pct = (health / maxHealth) * 100;
     this.healthFill.style.width = pct + '%';
     if (pct > 50) {
@@ -321,22 +410,40 @@ export class HUD {
       this.weaponIconEl.innerHTML = getWeaponIcon(weaponId);
     }
 
-    if (this.weaponSlots) {
-      const slots = this.weaponSlots.children;
-      for (let i = 0; i < slots.length; i++) {
-        slots[i].classList.toggle('active', i === currentSlot);
-        const hasWeapon = this.game && this.game.weapons.slots[i];
-        slots[i].classList.toggle('empty-slot', !hasWeapon);
+    if (this.weaponSlots && slots) {
+      const slotEls = this.weaponSlots.children;
+      for (let i = 0; i < slotEls.length; i++) {
+        slotEls[i].classList.toggle('active', i === currentSlot);
+        const hasWeapon = slots[i] && WEAPONS[slots[i]];
+        slotEls[i].classList.toggle('empty-slot', !hasWeapon);
       }
+    }
+
+    // Stage info
+    if (this.stageInfoEl && bossKills !== undefined) {
+      this.stageInfoEl.textContent = `WAVE ${wave} | BOSS ${bossKills}킬 | ZOMBIE ${totalKills}킬`;
+    }
+
+    // Mobile weapon switch buttons
+    const mobileSlots = document.querySelectorAll('.ws-btn');
+    if (mobileSlots.length > 0 && slots) {
+      mobileSlots.forEach(btn => {
+        const idx = parseInt(btn.dataset.slot);
+        const hasWeapon = slots[idx] && WEAPONS[slots[idx]];
+        btn.classList.toggle('empty-slot', !hasWeapon);
+        btn.classList.toggle('active', idx === currentSlot);
+      });
     }
 
     if (this.shopOpen) this.updateShopAffordability();
   }
 
-  showHitMarker(isHeadshot = false, isCrit = false) {
+  showHitMarker(isHeadshot = false, isCrit = false, isWeakness = false) {
     this.hitMarker.classList.add('show');
     this.hitMarker.querySelectorAll('.hm').forEach(el => {
-      if (isCrit) {
+      if (isWeakness) {
+        el.style.background = '#00ffaa';
+      } else if (isCrit) {
         el.style.background = '#ffcc00';
       } else if (isHeadshot) {
         el.style.background = '#ff0000';

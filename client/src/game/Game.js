@@ -1,6 +1,6 @@
 // client/src/game/Game.js
 import * as THREE from 'three';
-import { NPC as NPC_CONST, NPC_TYPES, BOSS_UNIQUE_WEAPONS, WEAPONS } from '../../../shared/constants.js';
+import { NPC as NPC_CONST, NPC_TYPES, BOSS_WEAPONS_NORMAL, BOSS_WEAPONS_RARE, BOSS_WEAPONS_LEGENDARY, WEAPONS } from '../../../shared/constants.js';
 import { SceneManager } from './SceneManager.js';
 import { Player } from './Player.js';
 import { MapBuilder } from './MapBuilder.js';
@@ -136,21 +136,55 @@ export class Game {
     }
 
     this.killCount++;
+    this.npcManager.totalKillCount = this.killCount;
     this.hud.updateKillCount(this.killCount);
+
+    // Milestone alerts for new zombie tiers
+    if (this.killCount === 100) {
+      this.hud.showBossAlert('RARE ZOMBIES INCOMING!');
+      this.hud.screenShake();
+    } else if (this.killCount === 200) {
+      this.hud.showBossAlert('UNIQUE ZOMBIES INCOMING!');
+      this.hud.screenShake();
+    }
 
     if (npc.isBoss) {
       this.bossKillCount++;
       this.wave = this.bossKillCount + 1;
 
-      // 30% chance to drop special weapon
+      // 30% chance to drop special weapon (tier based on boss kill count)
       if (Math.random() < 0.3) {
-        const pool = BOSS_UNIQUE_WEAPONS;
+        const pool = this.bossKillCount >= 7 ? BOSS_WEAPONS_LEGENDARY
+                   : this.bossKillCount >= 4 ? BOSS_WEAPONS_RARE
+                   : BOSS_WEAPONS_NORMAL;
         const dropId = pool[Math.floor(Math.random() * pool.length)];
-        this.weapons.slots[3] = dropId;
-        this.weapons.slotAmmo[dropId] = this.weapons.getEffectiveMaxAmmo(dropId);
-        this.weapons.switchSlot(3);
-        this.hud.showBossAlert(`BOSS DEFEATED! ${WEAPONS[dropId].name} ACQUIRED!`);
-        this.hud.showWeaponDropEffect();
+        const existingId = this.weapons.slots[3];
+
+        const equipWeapon = () => {
+          this.weapons.slots[3] = dropId;
+          this.weapons.slotAmmo[dropId] = this.weapons.getEffectiveMaxAmmo(dropId);
+          this.weapons.switchSlot(3);
+          this.hud.showWeaponDropEffect();
+        };
+
+        if (existingId && WEAPONS[existingId]) {
+          // Show replacement confirmation dialog
+          this.hud.showWeaponReplaceDialog(
+            WEAPONS[existingId].name,
+            WEAPONS[dropId].name,
+            () => {
+              equipWeapon();
+              this.hud.showBossAlert(`${WEAPONS[dropId].name} ACQUIRED!`);
+            },
+            () => {
+              this.hud.showBossAlert('BOSS DEFEATED!');
+            }
+          );
+          this.hud.showBossAlert(`BOSS DEFEATED! ${WEAPONS[dropId].name} DROP!`);
+        } else {
+          equipWeapon();
+          this.hud.showBossAlert(`BOSS DEFEATED! ${WEAPONS[dropId].name} ACQUIRED!`);
+        }
       } else {
         this.hud.showBossAlert('BOSS DEFEATED!');
       }
@@ -281,6 +315,9 @@ export class Game {
       xpToNext: this.player.xpToNext,
       damageBonus: Math.round((this.player.damageMultiplier - 1) * 100),
       wave: this.wave,
+      bossKills: this.bossKillCount,
+      totalKills: this.killCount,
+      slots: this.weapons.slots,
     });
 
     this.network.sendPosition(
@@ -415,6 +452,105 @@ export class Game {
         barrel.position.set(0.95, 2.0, -0.4);
         parts.push(barrel);
         break;
+      }
+      case 'RocketLauncher': {
+        const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.6, 6), mat(0x3a3a2a));
+        tube.rotation.x = Math.PI / 2;
+        tube.position.set(0.95, 2.0, -0.4);
+        parts.push(tube);
+        break;
+      }
+      // Rare weapons (blue tint)
+      case 'BasicGunRare': {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.5), mat(0x335577));
+        b.position.set(0.95, 2.0, -0.4); parts.push(b); break;
+      }
+      case 'MinigunRare': {
+        for (let i = 0; i < 3; i++) {
+          const b = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.6, 4), mat(0x2a4466));
+          b.rotation.x = Math.PI / 2;
+          const a = (i / 3) * Math.PI * 2;
+          b.position.set(0.95 + Math.cos(a) * 0.06, 2.0 + Math.sin(a) * 0.06, -0.35);
+          parts.push(b);
+        } break;
+      }
+      case 'ShotgunRare': {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, 0.7), mat(0x2a4466));
+        b.position.set(0.95, 2.0, -0.4); parts.push(b); break;
+      }
+      case 'RevolverRare': case 'GlockRare': {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.3), mat(0x446688));
+        b.position.set(0.95, 2.0, -0.3); parts.push(b); break;
+      }
+      case 'KnifeRare': {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.5), mat(0x6688bb));
+        b.position.set(0.95, 2.0, -0.35); parts.push(b); break;
+      }
+      case 'AxeRare': {
+        const h = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.5), mat(0x3a5a8e));
+        h.position.set(0.95, 2.0, -0.35);
+        const hd = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.1), mat(0x4466aa));
+        hd.position.set(0.95, 2.0, -0.55);
+        parts.push(h, hd); break;
+      }
+      case 'RailgunRare': {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.7), mat(0x3366aa));
+        b.position.set(0.95, 2.0, -0.45); parts.push(b); break;
+      }
+      case 'PlasmaMK2': {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.5), mat(0x5500aa));
+        b.position.set(0.95, 2.0, -0.4); parts.push(b); break;
+      }
+      case 'RocketRare': {
+        const t = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.6, 6), mat(0x4a5a3a));
+        t.rotation.x = Math.PI / 2; t.position.set(0.95, 2.0, -0.4);
+        parts.push(t); break;
+      }
+      // Legendary weapons (gold/orange tint)
+      case 'GoldAssault': {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.5), mat(0xcc9933));
+        b.position.set(0.95, 2.0, -0.4); parts.push(b); break;
+      }
+      case 'HellMinigun': {
+        for (let i = 0; i < 3; i++) {
+          const b = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.6, 4), mat(0x882200));
+          b.rotation.x = Math.PI / 2;
+          const a = (i / 3) * Math.PI * 2;
+          b.position.set(0.95 + Math.cos(a) * 0.06, 2.0 + Math.sin(a) * 0.06, -0.35);
+          parts.push(b);
+        } break;
+      }
+      case 'DoomShotgun': {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, 0.7), mat(0xcc5500));
+        b.position.set(0.95, 2.0, -0.4); parts.push(b); break;
+      }
+      case 'DesertKing': case 'BlazeGlock': {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.3), mat(0xcc9933));
+        b.position.set(0.95, 2.0, -0.3); parts.push(b); break;
+      }
+      case 'BloodBlade': {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.5), mat(0xcc2222));
+        b.position.set(0.95, 2.0, -0.35); parts.push(b); break;
+      }
+      case 'WorldBreaker': {
+        const h = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.5), mat(0x886622));
+        h.position.set(0.95, 2.0, -0.35);
+        const hd = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.18, 0.12), mat(0xddaa44));
+        hd.position.set(0.95, 2.0, -0.55);
+        parts.push(h, hd); break;
+      }
+      case 'ZeusRailgun': {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.7), mat(0xddaa44));
+        b.position.set(0.95, 2.0, -0.45); parts.push(b); break;
+      }
+      case 'PlasmaOverload': {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.5), mat(0x8800cc));
+        b.position.set(0.95, 2.0, -0.4); parts.push(b); break;
+      }
+      case 'DoomBringer': {
+        const t = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.65, 6), mat(0x882200));
+        t.rotation.x = Math.PI / 2; t.position.set(0.95, 2.0, -0.4);
+        parts.push(t); break;
       }
       default: {
         const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.5), mat(0x222222));

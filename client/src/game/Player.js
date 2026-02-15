@@ -1,6 +1,6 @@
 // client/src/game/Player.js
 import * as THREE from 'three';
-import { PLAYER, GAME } from '../../../shared/constants.js';
+import { PLAYER, GAME, SAFE_ZONE } from '../../../shared/constants.js';
 
 export class Player {
   constructor(sceneManager, physics) {
@@ -42,6 +42,8 @@ export class Player {
     this.speedBonus = 0;         // +5% per purchase
     this.critChance = 0;         // +5% per purchase
     this.magBonus = 0;           // +20% per purchase
+    this.fireRateBonus = 0;      // +10% per purchase
+    this.damageBonus = 0;        // +10% per purchase
 
     // Map reference for collision
     this.map = null;
@@ -61,37 +63,62 @@ export class Player {
 
   createSpawnZone() {
     const pad = new THREE.Group();
+    const r = SAFE_ZONE.RADIUS;
+
+    // Outer ring
     const ring = new THREE.Mesh(
-      new THREE.RingGeometry(4, 5, 32),
+      new THREE.RingGeometry(r - 1, r, 48),
       new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.4, side: THREE.DoubleSide })
     );
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = 0.05;
+
+    // Inner circle
     const inner = new THREE.Mesh(
-      new THREE.CircleGeometry(4, 32),
-      new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.15, side: THREE.DoubleSide })
+      new THREE.CircleGeometry(r - 1, 48),
+      new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.1, side: THREE.DoubleSide })
     );
     inner.rotation.x = -Math.PI / 2;
     inner.position.y = 0.04;
+
+    // Cross pattern
     const crossMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.5 });
     const bar1 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.05, 6), crossMat);
     bar1.position.y = 0.06;
     const bar2 = new THREE.Mesh(new THREE.BoxGeometry(6, 0.05, 0.3), crossMat);
     bar2.position.y = 0.06;
+
+    // Dome shield effect
+    const dome = new THREE.Mesh(
+      new THREE.SphereGeometry(r, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.06, side: THREE.DoubleSide })
+    );
+    dome.position.y = 0;
+
+    // Dome edge ring at top
+    const domeRing = new THREE.Mesh(
+      new THREE.TorusGeometry(r, 0.08, 8, 48),
+      new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.3 })
+    );
+    domeRing.rotation.x = Math.PI / 2;
+    domeRing.position.y = 0.1;
+
+    // SAFE ZONE text
     const canvas = document.createElement('canvas');
     canvas.width = 256; canvas.height = 64;
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#00ff88';
-    ctx.font = 'bold 36px Arial';
+    ctx.font = 'bold 32px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('SPAWN', 128, 42);
+    ctx.fillText('SAFE ZONE', 128, 42);
     const tex = new THREE.CanvasTexture(canvas);
     const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.7 });
     const sprite = new THREE.Sprite(spriteMat);
-    sprite.scale.set(4, 1, 1);
-    sprite.position.y = 6;
-    pad.add(ring, inner, bar1, bar2, sprite);
-    pad.position.set(this.spawnPoint.x, 0, this.spawnPoint.z);
+    sprite.scale.set(5, 1.2, 1);
+    sprite.position.y = 7;
+
+    pad.add(ring, inner, bar1, bar2, dome, domeRing, sprite);
+    pad.position.set(SAFE_ZONE.X, 0, SAFE_ZONE.Z);
     pad.userData.isEffect = true;
     pad.traverse(c => { c.userData.isEffect = true; });
     this.scene.add(pad);
@@ -200,7 +227,18 @@ export class Player {
     this.coins += amount;
   }
 
+  isInSafeZone() {
+    const dx = this.position.x - SAFE_ZONE.X;
+    const dz = this.position.z - SAFE_ZONE.Z;
+    return (dx * dx + dz * dz) < SAFE_ZONE.RADIUS * SAFE_ZONE.RADIUS;
+  }
+
+  getPowerLevel() {
+    return Math.round(this.fireRateBonus / 0.1) + Math.round(this.damageBonus / 0.1);
+  }
+
   takeDamage(amount) {
+    if (this.isInSafeZone()) return;
     this.health = Math.max(0, this.health - amount);
     if (this.health <= 0) this.die();
   }

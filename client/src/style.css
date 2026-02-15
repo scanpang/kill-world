@@ -93,8 +93,16 @@ canvas { display: block; }
 
 /* Empty weapon slot */
 #weapon-slots .slot.empty-slot {
-  opacity: 0.3;
+  opacity: 0.2;
   border-color: rgba(255,255,255,0.05);
+  border-style: dashed;
+  color: #333;
+  pointer-events: none;
+}
+.ws-btn.empty-slot {
+  opacity: 0.2;
+  border-style: dashed;
+  pointer-events: none;
 }
 
 /* Coins */
@@ -119,6 +127,16 @@ canvas { display: block; }
   font-family: 'Orbitron', sans-serif;
   font-size: 13px; font-weight: 700; color: #aaa;
   letter-spacing: 1px;
+}
+
+/* Stage Info */
+#stage-info {
+  position: absolute; top: 62px; left: 50%; transform: translateX(-50%);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px; font-weight: 700; color: #888;
+  letter-spacing: 1px; white-space: nowrap;
+  background: rgba(0,0,0,0.4); padding: 2px 10px;
+  border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);
 }
 
 /* Boss Alert */
@@ -256,7 +274,7 @@ canvas { display: block; }
 #shop-panel {
   position: fixed; top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  width: 360px; max-height: 80vh; z-index: 300;
+  width: 380px; max-height: 80vh; z-index: 300;
   background: rgba(8,8,12,0.97);
   border: 2px solid rgba(255,107,53,0.4);
   border-radius: 12px;
@@ -290,7 +308,7 @@ canvas { display: block; }
 
 #shop-items {
   padding: 10px 14px; overflow-y: auto;
-  max-height: calc(80vh - 60px);
+  flex: 1; min-height: 0;
 }
 .shop-item {
   display: flex; align-items: center; gap: 10px;
@@ -325,6 +343,16 @@ canvas { display: block; }
   font-size: 14px; color: #ffd700; font-weight: 700;
   flex-shrink: 0;
 }
+/* Consumable purchase count */
+.shop-bought-count {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px; font-weight: 700;
+  color: #69f0ae; flex-shrink: 0;
+  background: rgba(105,240,174,0.1);
+  border: 1px solid rgba(105,240,174,0.3);
+  border-radius: 4px; padding: 2px 6px;
+}
+
 .shop-buy-btn {
   flex-shrink: 0;
   font-family: 'Orbitron', sans-serif;
@@ -344,6 +372,60 @@ canvas { display: block; }
 .shop-buy-btn:active {
   background: rgba(255,107,53,0.7);
   transform: scale(0.95);
+}
+
+/* Shop section headers */
+.shop-section-header {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px; font-weight: 700;
+  color: #ff6b35; letter-spacing: 2px;
+  padding: 10px 4px 4px;
+  border-bottom: 1px solid rgba(255,107,53,0.2);
+  margin-bottom: 6px; margin-top: 4px;
+}
+.shop-section-header:first-child { margin-top: 0; padding-top: 4px; }
+
+/* Tier badges */
+.tier-badge {
+  font-size: 10px; font-weight: 700;
+  padding: 1px 6px; border-radius: 3px;
+  margin-left: 6px; vertical-align: middle;
+}
+.tier-badge.rare {
+  color: #66aaff;
+  background: rgba(68,136,204,0.2);
+  border: 1px solid rgba(68,136,204,0.4);
+}
+.tier-badge.legendary {
+  color: #ffcc44;
+  background: rgba(221,170,68,0.2);
+  border: 1px solid rgba(221,170,68,0.4);
+  text-shadow: 0 0 4px rgba(255,200,0,0.3);
+}
+
+/* Shop tier colors */
+.shop-item[data-tier="rare"] {
+  border-color: rgba(68,136,204,0.4);
+  background: rgba(68,136,204,0.04);
+}
+.shop-item[data-tier="rare"]:hover {
+  background: rgba(68,136,204,0.1);
+  border-color: rgba(68,136,204,0.6);
+}
+.shop-item[data-tier="rare"] .shop-name {
+  color: #66aaff;
+}
+.shop-item[data-tier="legendary"] {
+  border-color: rgba(221,170,68,0.5);
+  background: rgba(221,170,68,0.05);
+}
+.shop-item[data-tier="legendary"]:hover {
+  background: rgba(221,170,68,0.1);
+  border-color: rgba(221,170,68,0.7);
+}
+.shop-item[data-tier="legendary"] .shop-name {
+  color: #ffcc44;
+  text-shadow: 0 0 6px rgba(255,200,0,0.4);
 }
 
 /* ─── Shop Confirm Dialog ─── */
@@ -381,6 +463,43 @@ canvas { display: block; }
   border-color: rgba(255,255,255,0.2);
 }
 .confirm-no:hover { background: rgba(255,255,255,0.1); }
+
+/* ─── Weapon Replace Dialog ─── */
+#weapon-replace-dialog {
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 350;
+  background: rgba(8,8,12,0.97);
+  border: 2px solid rgba(255,200,0,0.5);
+  border-radius: 12px;
+  padding: 24px 32px;
+  text-align: center;
+  animation: slideUp 0.3s ease-out;
+}
+.replace-msg {
+  color: #ffcc00; font-family: 'Orbitron', sans-serif;
+  font-size: 16px; font-weight: 700;
+  margin-bottom: 16px; line-height: 1.5;
+}
+.replace-btns {
+  display: flex; gap: 16px; justify-content: center;
+}
+.replace-yes, .replace-no {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 16px; font-weight: 900;
+  padding: 10px 30px; border-radius: 6px;
+  cursor: pointer; border: 2px solid; pointer-events: auto;
+}
+.replace-yes {
+  color: #fff; background: rgba(0,200,100,0.3);
+  border-color: rgba(0,200,100,0.6);
+}
+.replace-yes:hover { background: rgba(0,200,100,0.5); }
+.replace-no {
+  color: #aaa; background: rgba(255,50,50,0.2);
+  border-color: rgba(255,50,50,0.4);
+}
+.replace-no:hover { background: rgba(255,50,50,0.4); }
 
 /* ─── Pause Overlay ─── */
 #overlay {
@@ -523,6 +642,7 @@ canvas { display: block; }
   #coin-icon { font-size: 14px; }
   #coin-display { font-size: 14px; }
   #kill-count { top: 36px; font-size: 10px; }
+  #stage-info { top: 52px; font-size: 9px; }
   #boss-alert { font-size: 18px; top: 25%; }
   #shop-panel { width: 280px; max-height: 70vh; }
 }

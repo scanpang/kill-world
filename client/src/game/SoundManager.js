@@ -40,31 +40,63 @@ export class SoundManager {
     switch (weaponId) {
       case 'MachineGun':
       case 'Glock':
+      case 'GlockRare':
         this._shot(0.06, 150, 80, 0.4);
+        break;
+      case 'BlazeGlock':
+        this._shot(0.06, 180, 90, 0.5);
         break;
       case 'Pistol':
       case 'Revolver':
+      case 'RevolverRare':
         this._shot(0.1, 200, 60, 0.5);
         break;
+      case 'DesertKing':
+        this._shot(0.12, 220, 50, 0.7);
+        break;
       case 'Minigun':
+      case 'MinigunRare':
       case 'HellFire':
         this._shot(0.04, 120, 100, 0.3);
         break;
+      case 'HellMinigun':
+        this._shot(0.04, 140, 120, 0.4);
+        break;
       case 'Shotgun':
+      case 'ShotgunRare':
         this._shotgunBlast();
+        break;
+      case 'DoomShotgun':
+        this._shotgunBlast();
+        this._shot(0.08, 60, 40, 0.3);
         break;
       case 'Sniper':
         this._shot(0.15, 100, 40, 0.7);
         break;
+      case 'Railgun':
+      case 'RailgunRare':
       case 'BossGun':
       case 'LaserRifle':
         this._laserShot();
         break;
+      case 'PlasmaGun':
+      case 'PlasmaMK2':
+      case 'PlasmaOverload':
+        this._laserShot();
+        break;
+      case 'ZeusRailgun':
       case 'ThunderGun':
         this._thunderShot();
         break;
       case 'FrostCannon':
         this._frostShot();
+        break;
+      case 'RocketLauncher':
+      case 'RocketRare':
+        this._shot(0.12, 80, 60, 0.6);
+        break;
+      case 'DoomBringer':
+        this._shot(0.15, 60, 50, 0.8);
         break;
       default:
         this._shot(0.08, 150, 70, 0.4);

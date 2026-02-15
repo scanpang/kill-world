@@ -17,9 +17,13 @@ if (isMobile) {
     overlay.classList.remove('active');
   }, { passive: false });
 } else {
-  // Desktop: click to lock pointer
-  document.addEventListener('click', () => {
+  // Desktop: click to lock pointer (skip UI panels)
+  document.addEventListener('click', (e) => {
     if (!document.pointerLockElement) {
+      // If shop is open, never re-lock (handles detached confirm dialogs too)
+      const shop = document.getElementById('shop-panel');
+      if (shop && shop.classList.contains('active')) return;
+      if (e.target.closest('#weapon-replace-dialog') || e.target.closest('#death-screen')) return;
       document.body.requestPointerLock();
     }
   });
