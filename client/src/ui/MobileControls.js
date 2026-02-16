@@ -19,6 +19,9 @@ export class MobileControls {
     this.autoFire = false;
     this.lastShootTap = 0;
 
+    // Shoot touch tracking
+    this.shootTouchId = null;
+
     // Deadzone threshold
     this.deadzone = 0.15;
 
@@ -39,6 +42,7 @@ export class MobileControls {
     this.setupJoystick();
     this.setupLook();
     this.setupButtons();
+    this.setupSafetyHandlers();
   }
 
   isMobile() {
@@ -166,6 +170,8 @@ export class MobileControls {
     // Double-tap shoot = toggle auto-fire
     shootBtn.addEventListener('touchstart', (e) => {
       e.preventDefault();
+      const touch = e.changedTouches[0];
+      this.shootTouchId = touch.identifier;
       const now = Date.now();
 
       if (now - this.lastShootTap < 300) {
@@ -185,12 +191,21 @@ export class MobileControls {
       this.lastShootTap = now;
     }, { passive: false });
 
-    shootBtn.addEventListener('touchend', (e) => {
+    const endShoot = (e) => {
       e.preventDefault();
-      if (!this.autoFire) {
-        this.weapons.isShooting = false;
+      for (const touch of e.changedTouches) {
+        if (touch.identifier === this.shootTouchId) {
+          this.shootTouchId = null;
+          if (!this.autoFire) {
+            this.weapons.isShooting = false;
+          }
+          break;
+        }
       }
-    });
+    };
+
+    shootBtn.addEventListener('touchend', endShoot);
+    shootBtn.addEventListener('touchcancel', endShoot);
 
     const jumpBtn = document.getElementById('btn-jump');
     jumpBtn.addEventListener('touchstart', (e) => {
@@ -254,6 +269,37 @@ export class MobileControls {
         }
       }, { passive: false });
     });
+  }
+
+  setupSafetyHandlers() {
+    // Reset shooting state when app goes to background
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this.resetFiring();
+      }
+    });
+
+    // Safety: if all touches end, force-reset isShooting (unless autoFire)
+    document.addEventListener('touchend', (e) => {
+      if (e.touches.length === 0 && !this.autoFire) {
+        this.weapons.isShooting = false;
+        this.shootTouchId = null;
+      }
+    });
+    document.addEventListener('touchcancel', (e) => {
+      if (e.touches.length === 0 && !this.autoFire) {
+        this.weapons.isShooting = false;
+        this.shootTouchId = null;
+      }
+    });
+  }
+
+  resetFiring() {
+    this.autoFire = false;
+    this.shootTouchId = null;
+    this.weapons.isShooting = false;
+    const shootBtn = document.getElementById('btn-shoot');
+    if (shootBtn) shootBtn.classList.remove('auto-fire');
   }
 
   update() {
