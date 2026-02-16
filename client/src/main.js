@@ -38,11 +38,14 @@ introTip.textContent = TIPS[Math.floor(Math.random() * TIPS.length)];
 
 /* ─── Fullscreen helpers ─── */
 function requestFullscreen() {
-  const el = document.documentElement;
-  const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
-  if (rfs && !document.fullscreenElement && !document.webkitFullscreenElement) {
-    rfs.call(el).catch(() => {});
-  }
+  try {
+    const el = document.documentElement;
+    const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+    if (rfs && !document.fullscreenElement && !document.webkitFullscreenElement) {
+      const p = rfs.call(el);
+      if (p && p.catch) p.catch(() => {});
+    }
+  } catch (_) { /* unsupported */ }
 }
 
 function lockLandscape() {
@@ -137,6 +140,15 @@ introStartBtn.addEventListener('touchstart', (e) => {
   startGame();
 }, { passive: false });
 
+// Mobile: tap anywhere on intro screen to start
+if (isMobile) {
+  introScreen.addEventListener('touchstart', (e) => {
+    if (introStartBtn.disabled) return;
+    e.preventDefault();
+    startGame();
+  }, { passive: false });
+}
+
 /* ─── Platform-specific overlay logic (for resume after pause) ─── */
 if (isMobile) {
   // Hide keyboard controls, show TAP TO PLAY
@@ -151,6 +163,10 @@ if (isMobile) {
   overlay.addEventListener('touchstart', (e) => {
     e.preventDefault();
     overlay.classList.remove('active');
+    // Ensure intro is also dismissed and HUD is active
+    introScreen.classList.remove('active');
+    introScreen.classList.remove('fade-out');
+    document.getElementById('hud').classList.add('active');
     requestFullscreen();
     lockLandscape();
     acquireWakeLock();
