@@ -107,12 +107,26 @@ function startGame() {
     // Remove overlay (intro replaces it for first start)
     overlay.classList.remove('active');
 
-    requestFullscreen();
     if (isMobile) {
+      requestFullscreen();
       lockLandscape();
       acquireWakeLock();
     } else {
-      document.body.requestPointerLock();
+      // Fullscreen first, then pointer lock after transition completes
+      const el = document.documentElement;
+      const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+      if (rfs && !document.fullscreenElement && !document.webkitFullscreenElement) {
+        const p = rfs.call(el);
+        if (p && p.then) {
+          p.then(() => document.body.requestPointerLock())
+           .catch(() => document.body.requestPointerLock());
+        } else {
+          // Fallback for browsers where rfs doesn't return a promise
+          setTimeout(() => document.body.requestPointerLock(), 200);
+        }
+      } else {
+        document.body.requestPointerLock();
+      }
     }
   }, 600);
 }
@@ -206,6 +220,8 @@ if (isMobile) {
       const shop = document.getElementById('shop-panel');
       if (shop && shop.classList.contains('active')) return;
       if (e.target.closest('#weapon-replace-dialog') || e.target.closest('#death-screen')) return;
+      // Ensure fullscreen before pointer lock
+      requestFullscreen();
       document.body.requestPointerLock();
     }
   });
