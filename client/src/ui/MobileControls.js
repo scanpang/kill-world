@@ -14,6 +14,20 @@ export class MobileControls {
     // Look state
     this.lookTouchId = null;
     this.lastLookPos = { x: 0, y: 0 };
+
+    // Auto-fire state
+    this.autoFire = false;
+    this.lastShootTap = 0;
+
+    // Deadzone threshold
+    this.deadzone = 0.15;
+
+    // Haptic support
+    this.canVibrate = 'vibrate' in navigator;
+  }
+
+  vibrate(ms) {
+    if (this.canVibrate) navigator.vibrate(ms);
   }
 
   init() {
@@ -66,9 +80,19 @@ export class MobileControls {
           dy = (dy / dist) * maxDist;
         }
 
+        // Normalize and apply deadzone
+        let nx = dx / maxDist;
+        let ny = dy / maxDist;
+        const mag = Math.sqrt(nx * nx + ny * ny);
+
+        if (mag < this.deadzone) {
+          nx = 0;
+          ny = 0;
+        }
+
         // Set analog input directly on player
-        this.player.mobileMove.x = dx / maxDist;
-        this.player.mobileMove.y = dy / maxDist;
+        this.player.mobileMove.x = nx;
+        this.player.mobileMove.y = ny;
 
         stick.style.left = (this.joystickOrigin.x + dx - 20) + 'px';
         stick.style.top = (this.joystickOrigin.y + dy - 20) + 'px';
@@ -115,8 +139,9 @@ export class MobileControls {
         const dx = touch.clientX - this.lastLookPos.x;
         const dy = touch.clientY - this.lastLookPos.y;
 
-        this.player.rotation.y -= dx * 0.01;
-        this.player.rotation.x -= dy * 0.01;
+        // Smoother look sensitivity (was 0.01)
+        this.player.rotation.y -= dx * 0.006;
+        this.player.rotation.x -= dy * 0.006;
         this.player.rotation.x = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, this.player.rotation.x));
 
         this.lastLookPos = { x: touch.clientX, y: touch.clientY };
@@ -137,20 +162,41 @@ export class MobileControls {
 
   setupButtons() {
     const shootBtn = document.getElementById('btn-shoot');
+
+    // Double-tap shoot = toggle auto-fire
     shootBtn.addEventListener('touchstart', (e) => {
       e.preventDefault();
-      this.weapons.isShooting = true;
-      if (!this.weapons.config.auto) this.weapons.shoot();
+      const now = Date.now();
+
+      if (now - this.lastShootTap < 300) {
+        // Double-tap: toggle auto-fire
+        this.autoFire = !this.autoFire;
+        shootBtn.classList.toggle('auto-fire', this.autoFire);
+        if (this.autoFire) {
+          this.weapons.isShooting = true;
+        }
+        this.vibrate(30);
+      } else {
+        this.weapons.isShooting = true;
+        if (!this.weapons.config.auto) this.weapons.shoot();
+        this.vibrate(15);
+      }
+
+      this.lastShootTap = now;
     }, { passive: false });
+
     shootBtn.addEventListener('touchend', (e) => {
       e.preventDefault();
-      this.weapons.isShooting = false;
+      if (!this.autoFire) {
+        this.weapons.isShooting = false;
+      }
     });
 
     const jumpBtn = document.getElementById('btn-jump');
     jumpBtn.addEventListener('touchstart', (e) => {
       e.preventDefault();
       this.player.keys['Space'] = true;
+      this.vibrate(10);
     }, { passive: false });
     jumpBtn.addEventListener('touchend', (e) => {
       e.preventDefault();
@@ -161,7 +207,33 @@ export class MobileControls {
     reloadBtn.addEventListener('touchstart', (e) => {
       e.preventDefault();
       this.weapons.reload();
+      this.vibrate(20);
+      // Disable auto-fire on reload
+      if (this.autoFire) {
+        this.autoFire = false;
+        shootBtn.classList.remove('auto-fire');
+        this.weapons.isShooting = false;
+      }
     }, { passive: false });
+
+    // Sprint button
+    const sprintBtn = document.getElementById('btn-sprint');
+    if (sprintBtn) {
+      sprintBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        this.player.isSprinting = true;
+        sprintBtn.classList.add('active');
+      }, { passive: false });
+      sprintBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        this.player.isSprinting = false;
+        sprintBtn.classList.remove('active');
+      });
+      sprintBtn.addEventListener('touchcancel', (e) => {
+        this.player.isSprinting = false;
+        sprintBtn.classList.remove('active');
+      });
+    }
 
     // Weapon switch buttons
     const wsBtns = document.querySelectorAll('.ws-btn');
@@ -170,9 +242,16 @@ export class MobileControls {
         e.preventDefault();
         const slot = parseInt(btn.dataset.slot);
         this.weapons.switchSlot(slot);
+        this.vibrate(10);
         // Update button highlight
         wsBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
+        // Reset auto-fire on weapon switch
+        if (this.autoFire) {
+          this.autoFire = false;
+          shootBtn.classList.remove('auto-fire');
+          this.weapons.isShooting = false;
+        }
       }, { passive: false });
     });
   }

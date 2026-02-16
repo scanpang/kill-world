@@ -15,9 +15,10 @@ export class SceneManager {
     this.camera.position.set(0, 5, 10);
 
     // Renderer
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    this.renderer = new THREE.WebGLRenderer({ antialias: !isMobile });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -32,7 +33,8 @@ export class SceneManager {
     const sun = new THREE.DirectionalLight(0xfff5e6, 2.0);
     sun.position.set(60, 100, 40);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    sun.shadow.mapSize.set(isMobile ? 1024 : 2048, isMobile ? 1024 : 2048);
     sun.shadow.camera.near = 0.5;
     sun.shadow.camera.far = 300;
     sun.shadow.camera.left = -100;

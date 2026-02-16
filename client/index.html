@@ -2,7 +2,12 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#000000" />
+  <link rel="manifest" href="/manifest.json" />
   <title>KILL WORLD</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
@@ -126,9 +131,13 @@
         <div><span class="key">B</span> Shop</div>
         <div><span class="key">ESC</span> Pause</div>
       </div>
-      <p class="resume-text">CLICK TO PLAY</p>
+      <p class="resume-text desktop-only">CLICK TO PLAY</p>
+      <p class="resume-text mobile-only">TAP TO PLAY</p>
     </div>
   </div>
+
+  <!-- Fullscreen Restore Button -->
+  <div id="fullscreen-btn">TAP FOR FULLSCREEN</div>
 
   <!-- Mobile Controls -->
   <div id="mobile-controls" style="display:none;">
@@ -139,6 +148,7 @@
     <button id="btn-shoot">FIRE</button>
     <button id="btn-jump">JUMP</button>
     <button id="btn-reload">R</button>
+    <button id="btn-sprint">SPRINT</button>
     <button id="btn-shop">SHOP</button>
     <div id="weapon-switch">
       <button class="ws-btn active" data-slot="0">1</button>
@@ -149,5 +159,10 @@
   </div>
 
   <script type="module" src="/src/main.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+  </script>
 </body>
 </html>
