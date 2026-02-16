@@ -96,7 +96,12 @@ introStartBtn.classList.add('ready');
 document.getElementById('hud').classList.remove('active');
 
 /* ─── START button handler ─── */
+let gameStarted = false;
+
 function startGame() {
+  if (gameStarted) return;
+  gameStarted = true;
+
   // Fade out intro
   introScreen.classList.add('fade-out');
 
@@ -110,26 +115,14 @@ function startGame() {
     // Remove overlay (intro replaces it for first start)
     overlay.classList.remove('active');
 
+    // Enter fullscreen for all platforms
+    requestFullscreen();
+
     if (isMobile) {
-      requestFullscreen();
       lockLandscape();
       acquireWakeLock();
     } else {
-      // Fullscreen first, then pointer lock after transition completes
-      const el = document.documentElement;
-      const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
-      if (rfs && !document.fullscreenElement && !document.webkitFullscreenElement) {
-        const p = rfs.call(el);
-        if (p && p.then) {
-          p.then(() => document.body.requestPointerLock())
-           .catch(() => document.body.requestPointerLock());
-        } else {
-          // Fallback for browsers where rfs doesn't return a promise
-          setTimeout(() => document.body.requestPointerLock(), 200);
-        }
-      } else {
-        document.body.requestPointerLock();
-      }
+      document.body.requestPointerLock();
     }
   }, 600);
 }
@@ -139,15 +132,6 @@ introStartBtn.addEventListener('touchstart', (e) => {
   e.preventDefault();
   startGame();
 }, { passive: false });
-
-// Mobile: tap anywhere on intro screen to start
-if (isMobile) {
-  introScreen.addEventListener('touchstart', (e) => {
-    if (introStartBtn.disabled) return;
-    e.preventDefault();
-    startGame();
-  }, { passive: false });
-}
 
 /* ─── Platform-specific overlay logic (for resume after pause) ─── */
 if (isMobile) {
@@ -163,10 +147,6 @@ if (isMobile) {
   overlay.addEventListener('touchstart', (e) => {
     e.preventDefault();
     overlay.classList.remove('active');
-    // Ensure intro is also dismissed and HUD is active
-    introScreen.classList.remove('active');
-    introScreen.classList.remove('fade-out');
-    document.getElementById('hud').classList.add('active');
     requestFullscreen();
     lockLandscape();
     acquireWakeLock();
@@ -236,7 +216,6 @@ if (isMobile) {
       const shop = document.getElementById('shop-panel');
       if (shop && shop.classList.contains('active')) return;
       if (e.target.closest('#weapon-replace-dialog') || e.target.closest('#death-screen')) return;
-      // Ensure fullscreen before pointer lock
       requestFullscreen();
       document.body.requestPointerLock();
     }
