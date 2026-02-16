@@ -25,41 +25,41 @@ export const PLAYER = {
 export const WEAPONS = {
   // ── Slot 0: Primary ──
   BasicGun:     { name: '기본총',       damage: 10,  headshotMul: 2.0, fireRate: 167,  maxAmmo: 40,       reloadTime: 2000, spread: 0.03,  range: 200, auto: true,  price: 0,    type: 'gun',   slot: 0, tier: 'normal' },
-  Minigun:      { name: '미니건',       damage: 8,   headshotMul: 1.5, fireRate: 125,  maxAmmo: 60,       reloadTime: 3500, spread: 0.05,  range: 150, auto: true,  price: 300,  type: 'gun',   slot: 0, tier: 'normal' },
+  Minigun:      { name: '미니건',       damage: 9,   headshotMul: 1.5, fireRate: 125,  maxAmmo: 60,       reloadTime: 3500, spread: 0.05,  range: 150, auto: true,  price: 300,  type: 'gun',   slot: 0, tier: 'normal' },
   Shotgun:      { name: '샷건',         damage: 50,  headshotMul: 1.5, fireRate: 833,  maxAmmo: 10,       reloadTime: 2500, spread: 0.06,  range: 50,  auto: false, price: 250,  type: 'gun',   slot: 0, tier: 'normal' },
   BasicGunRare: { name: '강화 기본총',  damage: 16,  headshotMul: 2.0, fireRate: 143,  maxAmmo: 50,       reloadTime: 1800, spread: 0.025, range: 230, auto: true,  price: 800,  type: 'gun',   slot: 0, tier: 'rare' },
   MinigunRare:  { name: '개조 미니건',  damage: 12,  headshotMul: 1.5, fireRate: 100,  maxAmmo: 80,       reloadTime: 3000, spread: 0.04,  range: 170, auto: true,  price: 1200, type: 'gun',   slot: 0, tier: 'rare' },
   ShotgunRare:  { name: '강화 샷건',    damage: 80,  headshotMul: 1.5, fireRate: 714,  maxAmmo: 12,       reloadTime: 2200, spread: 0.05,  range: 70,  auto: false, price: 950,  type: 'gun',   slot: 0, tier: 'rare' },
-  GoldAssault:  { name: '골드 어설트',  damage: 28,  headshotMul: 2.0, fireRate: 111,  maxAmmo: 70,       reloadTime: 1500, spread: 0.02,  range: 260, auto: true,  price: 2500, type: 'gun',   slot: 0, tier: 'legendary' },
-  HellMinigun:  { name: '헬 미니건',    damage: 18,  headshotMul: 1.5, fireRate: 71,   maxAmmo: 120,      reloadTime: 2800, spread: 0.04,  range: 200, auto: true,  price: 3200, type: 'gun',   slot: 0, tier: 'legendary' },
-  DoomShotgun:  { name: '둠 샷건',      damage: 150, headshotMul: 1.5, fireRate: 625,  maxAmmo: 15,       reloadTime: 2000, spread: 0.05,  range: 90,  auto: false, price: 2800, type: 'gun',   slot: 0, tier: 'legendary' },
+  GoldAssault:  { name: '골드 어설트',  damage: 25,  headshotMul: 2.0, fireRate: 111,  maxAmmo: 70,       reloadTime: 1500, spread: 0.02,  range: 260, auto: true,  price: 2500, type: 'gun',   slot: 0, tier: 'legendary' },
+  HellMinigun:  { name: '헬 미니건',    damage: 16,  headshotMul: 1.5, fireRate: 71,   maxAmmo: 120,      reloadTime: 2800, spread: 0.04,  range: 200, auto: true,  price: 3200, type: 'gun',   slot: 0, tier: 'legendary' },
+  DoomShotgun:  { name: '둠 샷건',      damage: 135, headshotMul: 1.5, fireRate: 625,  maxAmmo: 15,       reloadTime: 2000, spread: 0.05,  range: 90,  auto: false, price: 2800, type: 'gun',   slot: 0, tier: 'legendary' },
 
   // ── Slot 1: Secondary ──
   Revolver:     { name: '리볼버',       damage: 35,  headshotMul: 3.0, fireRate: 500,  maxAmmo: 8,        reloadTime: 2000, spread: 0.01,  range: 180, auto: false, price: 200,  type: 'gun',   slot: 1, tier: 'normal' },
   Glock:        { name: '글록',         damage: 15,  headshotMul: 2.0, fireRate: 250,  maxAmmo: 15,       reloadTime: 1500, spread: 0.02,  range: 120, auto: true,  price: 150,  type: 'gun',   slot: 1, tier: 'normal' },
   RevolverRare: { name: '강화 리볼버',  damage: 55,  headshotMul: 3.0, fireRate: 400,  maxAmmo: 10,       reloadTime: 1800, spread: 0.008, range: 220, auto: false, price: 600,  type: 'gun',   slot: 1, tier: 'rare' },
   GlockRare:    { name: '개조 글록',    damage: 22,  headshotMul: 2.0, fireRate: 200,  maxAmmo: 20,       reloadTime: 1300, spread: 0.015, range: 150, auto: true,  price: 450,  type: 'gun',   slot: 1, tier: 'rare' },
-  DesertKing:   { name: '데저트 킹',    damage: 90,  headshotMul: 3.0, fireRate: 333,  maxAmmo: 12,       reloadTime: 1500, spread: 0.005, range: 260, auto: false, price: 1500, type: 'gun',   slot: 1, tier: 'legendary' },
-  BlazeGlock:   { name: '블레이즈 글록',damage: 30,  headshotMul: 2.0, fireRate: 125,  maxAmmo: 30,       reloadTime: 1100, spread: 0.012, range: 170, auto: true,  price: 1300, type: 'gun',   slot: 1, tier: 'legendary' },
+  DesertKing:   { name: '데저트 킹',    damage: 75,  headshotMul: 3.0, fireRate: 333,  maxAmmo: 12,       reloadTime: 1500, spread: 0.005, range: 260, auto: false, price: 1500, type: 'gun',   slot: 1, tier: 'legendary' },
+  BlazeGlock:   { name: '블레이즈 글록',damage: 25,  headshotMul: 2.0, fireRate: 125,  maxAmmo: 30,       reloadTime: 1100, spread: 0.012, range: 170, auto: true,  price: 1300, type: 'gun',   slot: 1, tier: 'legendary' },
 
   // ── Slot 2: Melee ──
   Knife:        { name: '칼',           damage: 30,  headshotMul: 1.5, fireRate: 400,  maxAmmo: Infinity, reloadTime: 0,    spread: 0,     range: 4,   auto: false, price: 0,    type: 'melee', slot: 2, tier: 'normal' },
   Axe:          { name: '도끼',         damage: 90,  headshotMul: 1.5, fireRate: 1250, maxAmmo: Infinity, reloadTime: 0,    spread: 0,     range: 4.5, auto: false, price: 400,  type: 'melee', slot: 2, tier: 'normal' },
   KnifeRare:    { name: '강화 칼',      damage: 50,  headshotMul: 1.5, fireRate: 333,  maxAmmo: Infinity, reloadTime: 0,    spread: 0,     range: 4.5, auto: false, price: 600,  type: 'melee', slot: 2, tier: 'rare' },
   AxeRare:      { name: '강화 도끼',    damage: 140, headshotMul: 1.5, fireRate: 1000, maxAmmo: Infinity, reloadTime: 0,    spread: 0,     range: 5,   auto: false, price: 1200, type: 'melee', slot: 2, tier: 'rare' },
-  BloodBlade:   { name: '블러드 블레이드',damage: 90, headshotMul: 1.5, fireRate: 250,  maxAmmo: Infinity, reloadTime: 0,    spread: 0,     range: 5,   auto: false, price: 2000, type: 'melee', slot: 2, tier: 'legendary' },
+  BloodBlade:   { name: '블러드 블레이드',damage: 75, headshotMul: 1.5, fireRate: 250,  maxAmmo: Infinity, reloadTime: 0,    spread: 0,     range: 5,   auto: false, price: 2000, type: 'melee', slot: 2, tier: 'legendary' },
   WorldBreaker: { name: '월드 브레이커',damage: 220, headshotMul: 1.5, fireRate: 833,  maxAmmo: Infinity, reloadTime: 0,    spread: 0,     range: 6,   auto: false, price: 3500, type: 'melee', slot: 2, tier: 'legendary' },
 
   // ── Slot 3: Special (Boss Drop) ──
-  Railgun:       { name: '레일건',         damage: 25,  headshotMul: 2.5, fireRate: 333,  maxAmmo: 60,  reloadTime: 0, spread: 0.005, range: 500, auto: true,  price: 0, type: 'gun', slot: 3, unique: true, tier: 'normal' },
-  PlasmaGun:     { name: '플라즈마건',     damage: 18,  headshotMul: 2.0, fireRate: 167,  maxAmmo: 80,  reloadTime: 0, spread: 0.02,  range: 250, auto: true,  price: 0, type: 'gun', slot: 3, unique: true, tier: 'normal' },
-  RocketLauncher:{ name: '로켓런처',       damage: 120, headshotMul: 1.0, fireRate: 2000, maxAmmo: 10,  reloadTime: 0, spread: 0.01,  range: 300, auto: false, price: 0, type: 'gun', slot: 3, unique: true, tier: 'normal', explosive: true, explosionRadius: 8 },
-  RailgunRare:   { name: '강화 레일건',    damage: 45,  headshotMul: 3.0, fireRate: 333,  maxAmmo: 80,  reloadTime: 0, spread: 0.004, range: 550, auto: true,  price: 0, type: 'gun', slot: 3, unique: true, tier: 'rare' },
-  PlasmaMK2:     { name: '플라즈마 MK2',   damage: 28,  headshotMul: 2.0, fireRate: 125,  maxAmmo: 120, reloadTime: 0, spread: 0.015, range: 300, auto: true,  price: 0, type: 'gun', slot: 3, unique: true, tier: 'rare' },
+  Railgun:       { name: '레일건',         damage: 40,  headshotMul: 2.5, fireRate: 333,  maxAmmo: 60,  reloadTime: 0, spread: 0.005, range: 500, auto: true,  price: 0, type: 'gun', slot: 3, unique: true, tier: 'normal' },
+  PlasmaGun:     { name: '플라즈마건',     damage: 22,  headshotMul: 2.0, fireRate: 167,  maxAmmo: 80,  reloadTime: 0, spread: 0.02,  range: 250, auto: true,  price: 0, type: 'gun', slot: 3, unique: true, tier: 'normal' },
+  RocketLauncher:{ name: '로켓런처',       damage: 150, headshotMul: 1.0, fireRate: 2000, maxAmmo: 10,  reloadTime: 0, spread: 0.01,  range: 300, auto: false, price: 0, type: 'gun', slot: 3, unique: true, tier: 'normal', explosive: true, explosionRadius: 8 },
+  RailgunRare:   { name: '강화 레일건',    damage: 55,  headshotMul: 3.0, fireRate: 333,  maxAmmo: 80,  reloadTime: 0, spread: 0.004, range: 550, auto: true,  price: 0, type: 'gun', slot: 3, unique: true, tier: 'rare' },
+  PlasmaMK2:     { name: '플라즈마 MK2',   damage: 25,  headshotMul: 2.0, fireRate: 125,  maxAmmo: 120, reloadTime: 0, spread: 0.015, range: 300, auto: true,  price: 0, type: 'gun', slot: 3, unique: true, tier: 'rare' },
   RocketRare:    { name: '개조 로켓런처',  damage: 200, headshotMul: 1.0, fireRate: 1429, maxAmmo: 15,  reloadTime: 0, spread: 0.008, range: 350, auto: false, price: 0, type: 'gun', slot: 3, unique: true, tier: 'rare', explosive: true, explosionRadius: 10 },
-  ZeusRailgun:   { name: '제우스 레일건',  damage: 80,  headshotMul: 4.0, fireRate: 250,  maxAmmo: 120, reloadTime: 0, spread: 0.003, range: 700, auto: true,  price: 0, type: 'gun', slot: 3, unique: true, tier: 'legendary' },
-  PlasmaOverload:{ name: '플라즈마 오버로드',damage: 40, headshotMul: 2.0, fireRate: 100,  maxAmmo: 200, reloadTime: 0, spread: 0.015, range: 350, auto: true,  price: 0, type: 'gun', slot: 3, unique: true, tier: 'legendary' },
-  DoomBringer:   { name: '둠 브링어',      damage: 350, headshotMul: 1.0, fireRate: 1250, maxAmmo: 20,  reloadTime: 0, spread: 0.005, range: 400, auto: false, price: 0, type: 'gun', slot: 3, unique: true, tier: 'legendary', explosive: true, explosionRadius: 15 },
+  ZeusRailgun:   { name: '제우스 레일건',  damage: 70,  headshotMul: 3.0, fireRate: 250,  maxAmmo: 120, reloadTime: 0, spread: 0.003, range: 700, auto: true,  price: 0, type: 'gun', slot: 3, unique: true, tier: 'legendary' },
+  PlasmaOverload:{ name: '플라즈마 오버로드',damage: 32, headshotMul: 2.0, fireRate: 100,  maxAmmo: 150, reloadTime: 0, spread: 0.015, range: 350, auto: true,  price: 0, type: 'gun', slot: 3, unique: true, tier: 'legendary' },
+  DoomBringer:   { name: '둠 브링어',      damage: 300, headshotMul: 1.0, fireRate: 1250, maxAmmo: 20,  reloadTime: 0, spread: 0.005, range: 400, auto: false, price: 0, type: 'gun', slot: 3, unique: true, tier: 'legendary', explosive: true, explosionRadius: 15 },
 };
 
 export const BOSS_WEAPONS_NORMAL = ['Railgun', 'PlasmaGun', 'RocketLauncher'];
@@ -71,16 +71,16 @@ export const WEAPON_SLOTS = ['BasicGun', null, 'Knife', null];
 
 export const SHOP_ITEMS = [
   // Slot 0 - Normal
-  { id: 'Minigun', name: '미니건', price: 300, desc: '고속 연사 (8발/초)', category: 'weapon', slot: 0, tier: 'normal' },
+  { id: 'Minigun', name: '미니건', price: 300, desc: '고속 연사 (9 데미지, 8발/초)', category: 'weapon', slot: 0, tier: 'normal' },
   { id: 'Shotgun', name: '샷건', price: 250, desc: '강력한 단발 (50 데미지)', category: 'weapon', slot: 0, tier: 'normal' },
   // Slot 0 - Rare
   { id: 'BasicGunRare', name: '강화 기본총', price: 800, desc: '강화된 기본총 (16 데미지, 7발/초)', category: 'weapon', slot: 0, tier: 'rare' },
   { id: 'MinigunRare', name: '개조 미니건', price: 1200, desc: '개조 미니건 (12 데미지, 10발/초)', category: 'weapon', slot: 0, tier: 'rare' },
   { id: 'ShotgunRare', name: '강화 샷건', price: 950, desc: '강화 샷건 (80 데미지)', category: 'weapon', slot: 0, tier: 'rare' },
   // Slot 0 - Legendary
-  { id: 'GoldAssault', name: '골드 어설트', price: 2500, desc: '최강 어설트 (28 데미지, 9발/초)', category: 'weapon', slot: 0, tier: 'legendary' },
-  { id: 'HellMinigun', name: '헬 미니건', price: 3200, desc: '지옥의 미니건 (18 데미지, 14발/초)', category: 'weapon', slot: 0, tier: 'legendary' },
-  { id: 'DoomShotgun', name: '둠 샷건', price: 2800, desc: '파멸의 샷건 (150 데미지)', category: 'weapon', slot: 0, tier: 'legendary' },
+  { id: 'GoldAssault', name: '골드 어설트', price: 2500, desc: '최강 어설트 (25 데미지, 9발/초)', category: 'weapon', slot: 0, tier: 'legendary' },
+  { id: 'HellMinigun', name: '헬 미니건', price: 3200, desc: '지옥의 미니건 (16 데미지, 14발/초)', category: 'weapon', slot: 0, tier: 'legendary' },
+  { id: 'DoomShotgun', name: '둠 샷건', price: 2800, desc: '파멸의 샷건 (135 데미지)', category: 'weapon', slot: 0, tier: 'legendary' },
   // Slot 1 - Normal
   { id: 'Revolver', name: '리볼버', price: 200, desc: '강력한 권총', category: 'weapon', slot: 1, tier: 'normal' },
   { id: 'Glock', name: '글록', price: 150, desc: '빠른 연사 권총', category: 'weapon', slot: 1, tier: 'normal' },
@@ -88,15 +88,15 @@ export const SHOP_ITEMS = [
   { id: 'RevolverRare', name: '강화 리볼버', price: 600, desc: '강화 리볼버 (55 데미지)', category: 'weapon', slot: 1, tier: 'rare' },
   { id: 'GlockRare', name: '개조 글록', price: 450, desc: '개조 글록 (22 데미지, 5발/초)', category: 'weapon', slot: 1, tier: 'rare' },
   // Slot 1 - Legendary
-  { id: 'DesertKing', name: '데저트 킹', price: 1500, desc: '사막의 왕 (90 데미지, 3발/초)', category: 'weapon', slot: 1, tier: 'legendary' },
-  { id: 'BlazeGlock', name: '블레이즈 글록', price: 1300, desc: '화염 글록 (30 데미지, 8발/초)', category: 'weapon', slot: 1, tier: 'legendary' },
+  { id: 'DesertKing', name: '데저트 킹', price: 1500, desc: '사막의 왕 (75 데미지, 3발/초)', category: 'weapon', slot: 1, tier: 'legendary' },
+  { id: 'BlazeGlock', name: '블레이즈 글록', price: 1300, desc: '화염 글록 (25 데미지, 8발/초)', category: 'weapon', slot: 1, tier: 'legendary' },
   // Slot 2 - Normal
   { id: 'Axe', name: '도끼', price: 400, desc: '강력한 근접 (90 데미지)', category: 'weapon', slot: 2, tier: 'normal' },
   // Slot 2 - Rare
   { id: 'KnifeRare', name: '강화 칼', price: 600, desc: '강화 칼 (50 데미지, 3/초)', category: 'weapon', slot: 2, tier: 'rare' },
   { id: 'AxeRare', name: '강화 도끼', price: 1200, desc: '강화 도끼 (140 데미지)', category: 'weapon', slot: 2, tier: 'rare' },
   // Slot 2 - Legendary
-  { id: 'BloodBlade', name: '블러드 블레이드', price: 2000, desc: '피의 검 (90 데미지, 4/초)', category: 'weapon', slot: 2, tier: 'legendary' },
+  { id: 'BloodBlade', name: '블러드 블레이드', price: 2000, desc: '피의 검 (75 데미지, 4/초)', category: 'weapon', slot: 2, tier: 'legendary' },
   { id: 'WorldBreaker', name: '월드 브레이커', price: 3500, desc: '세계의 파괴자 (220 데미지)', category: 'weapon', slot: 2, tier: 'legendary' },
   // Consumables
   { id: 'HealthPack', name: '회복팩', price: 30, desc: '최대 HP의 30% 회복', category: 'consumable' },

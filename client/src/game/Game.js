@@ -152,8 +152,8 @@ export class Game {
       this.bossKillCount++;
       this.wave = this.bossKillCount + 1;
 
-      // 30% chance to drop special weapon (tier based on boss kill count)
-      if (Math.random() < 0.3) {
+      // 40% chance to drop special weapon (tier based on boss kill count)
+      if (Math.random() < 0.4) {
         const pool = this.bossKillCount >= 7 ? BOSS_WEAPONS_LEGENDARY
                    : this.bossKillCount >= 4 ? BOSS_WEAPONS_RARE
                    : BOSS_WEAPONS_NORMAL;

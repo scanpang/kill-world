@@ -35,16 +35,16 @@ export class NPCManager {
     const kills = this.totalKillCount;
 
     if (kills >= 200) {
-      // Unique tier unlocked
-      if (r < 0.07) return 'banshee';
-      if (r < 0.13) return 'juggernaut';
-      if (r < 0.20) return 'reaper';
-      if (r < 0.27) return 'spitter';
-      if (r < 0.35) return 'stalker';
-      if (r < 0.43) return 'brute';
-      if (r < 0.49) return 'tank';
-      if (r < 0.57) return 'shield';
-      if (r < 0.70) return 'fast';
+      // Unique tier unlocked (higher unique/rare ratio)
+      if (r < 0.08) return 'banshee';
+      if (r < 0.15) return 'juggernaut';
+      if (r < 0.23) return 'reaper';
+      if (r < 0.30) return 'spitter';
+      if (r < 0.38) return 'stalker';
+      if (r < 0.46) return 'brute';
+      if (r < 0.52) return 'tank';
+      if (r < 0.60) return 'shield';
+      if (r < 0.75) return 'fast';
       return 'normal';
     } else if (kills >= 100) {
       // Rare tier unlocked
@@ -71,8 +71,8 @@ export class NPCManager {
     let health, speed, damage;
 
     if (type === 'boss') {
-      // Boss HP scales ×1.4 per boss kill
-      health = Math.floor(cfg.health * Math.pow(1.4, this.bossKillCount));
+      // Boss HP scales ×1.25 per boss kill
+      health = Math.floor(cfg.health * Math.pow(1.25, this.bossKillCount));
       // Boss ATK/Speed scale with zombie level
       const atkMul = 1 + (lvl - 1) * 0.08;
       const spdMul = 1 + (lvl - 1) * 0.03;

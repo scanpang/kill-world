@@ -29,14 +29,14 @@ export class Player {
     // Level & XP
     this.level = 1;
     this.xp = 0;
-    this.xpToNext = 100;         // 100 × 1.6^(level-1)
+    this.xpToNext = 100;         // 100 × 1.5^(level-1)
     this.totalXP = 0;            // accumulated total for death screen
 
     // Damage multiplier (increases 10% per level)
     this.damageMultiplier = 1.0;
 
     // Level-based bonuses
-    this.bonusSpeed = 0;         // +2 per level
+    this.bonusSpeed = 0;         // +1.5 per level
 
     // Shop-based bonuses
     this.speedBonus = 0;         // +5% per purchase
@@ -149,10 +149,10 @@ export class Player {
     while (this.xp >= this.xpToNext) {
       this.xp -= this.xpToNext;
       this.level++;
-      this.xpToNext = Math.floor(100 * Math.pow(1.6, this.level - 1));
+      this.xpToNext = Math.floor(100 * Math.pow(1.5, this.level - 1));
       this.damageMultiplier = 1 + (this.level - 1) * 0.1;
-      this.maxHealth = PLAYER.MAX_HEALTH + (this.level - 1) * 5;
-      this.bonusSpeed = (this.level - 1) * 2;
+      this.maxHealth = PLAYER.MAX_HEALTH + (this.level - 1) * 8;
+      this.bonusSpeed = (this.level - 1) * 1.5;
       leveled = true;
     }
     return leveled;
