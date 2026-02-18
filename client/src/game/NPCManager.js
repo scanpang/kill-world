@@ -85,17 +85,17 @@ export class NPCManager {
     let health, speed, damage;
 
     if (type === 'boss') {
-      // Boss HP scales x1.20 per boss kill
-      health = Math.floor(cfg.health * Math.pow(1.20, this.bossKillCount));
+      // Boss HP scales x1.22 per boss kill
+      health = Math.floor(cfg.health * Math.pow(1.22, this.bossKillCount));
       // Boss ATK/Speed scale with zombie level
-      const atkMul = 1 + (lvl - 1) * 0.05;
+      const atkMul = 1 + (lvl - 1) * 0.06;
       const spdMul = 1 + (lvl - 1) * 0.02;
       damage = Math.floor(cfg.dmg * atkMul);
       speed = cfg.speed * spdMul;
     } else {
       // Regular zombies: ATK +5%, HP +7%, Speed +2% per level
-      const atkMul = 1 + (lvl - 1) * 0.05;
-      const hpMul = 1 + (lvl - 1) * 0.07;
+      const atkMul = 1 + (lvl - 1) * 0.06;
+      const hpMul = 1 + (lvl - 1) * 0.08;
       const spdMul = 1 + (lvl - 1) * 0.02;
       health = Math.floor(cfg.health * hpMul);
       damage = Math.floor(cfg.dmg * atkMul);
@@ -170,8 +170,8 @@ export class NPCManager {
       if (!npc.alive || npc.isBoss) continue;
       const cfg = NPC_TYPES[npc.type];
       const lvl = this.zombieLevel;
-      const atkMul = 1 + (lvl - 1) * 0.05;
-      const hpMul = 1 + (lvl - 1) * 0.07;
+      const atkMul = 1 + (lvl - 1) * 0.06;
+      const hpMul = 1 + (lvl - 1) * 0.08;
       const spdMul = 1 + (lvl - 1) * 0.02;
 
       npc.level = lvl;

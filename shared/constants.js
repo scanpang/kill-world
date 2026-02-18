@@ -16,7 +16,7 @@ export const PLAYER = {
   SPEED: 14,
   SPRINT_SPEED: 26,
   JUMP_FORCE: 10,
-  MAX_HEALTH: 120,
+  MAX_HEALTH: 115,
   HEIGHT: 4,
   RADIUS: 0.7,
   RESPAWN_TIME: 3,
@@ -122,19 +122,19 @@ export const NPC = {
 export const WEAKNESS_DAMAGE_MULTIPLIER = 2.0;
 
 export const NPC_TYPES = {
-  normal:      { health: 50,   speed: 7.0,   scale: 1,    bodyColor: 0x8b0000, coinDrop: 15,  dmg: 8,   name: 'Zombie',      xp: 2,  tier: 'normal', weakness: null },
-  fast:        { health: 70,   speed: 9.0,   scale: 0.85, bodyColor: 0xcc4400, coinDrop: 30,  dmg: 15,  name: 'Runner',      xp: 3,  tier: 'normal', weakness: null },
-  tank:        { health: 220,  speed: 8.0,   scale: 1.35, bodyColor: 0x2d1b69, coinDrop: 40,  dmg: 20,  name: 'Tank',        xp: 4,  tier: 'normal', weakness: null },
-  shield:      { health: 120,  speed: 6.0,   scale: 1.1,  bodyColor: 0x2a5a2a, coinDrop: 35,  dmg: 12,  name: 'Shield',      xp: 3,  tier: 'normal', weakness: null },
-  boss:        { health: 2500, speed: 9.5,   scale: 2.5,  bodyColor: 0x4a0080, coinDrop: 500, dmg: 45,  name: 'BOSS',        xp: 20, tier: 'boss',   weakness: null },
+  normal:      { health: 50,   speed: 7.0,   scale: 1,    bodyColor: 0x8b0000, coinDrop: 15,  dmg: 10,  name: 'Zombie',      xp: 2,  tier: 'normal', weakness: null },
+  fast:        { health: 70,   speed: 9.0,   scale: 0.85, bodyColor: 0xcc4400, coinDrop: 30,  dmg: 17,  name: 'Runner',      xp: 3,  tier: 'normal', weakness: null },
+  tank:        { health: 220,  speed: 8.0,   scale: 1.35, bodyColor: 0x2d1b69, coinDrop: 40,  dmg: 22,  name: 'Tank',        xp: 4,  tier: 'normal', weakness: null },
+  shield:      { health: 120,  speed: 6.0,   scale: 1.1,  bodyColor: 0x2a5a2a, coinDrop: 35,  dmg: 13,  name: 'Shield',      xp: 3,  tier: 'normal', weakness: null },
+  boss:        { health: 2800, speed: 9.5,   scale: 2.5,  bodyColor: 0x4a0080, coinDrop: 500, dmg: 50,  name: 'BOSS',        xp: 20, tier: 'boss',   weakness: null },
   // Rare (100+ kills)
-  brute:       { health: 300,  speed: 6.5,   scale: 1.5,  bodyColor: 0xb03030, coinDrop: 85,  dmg: 28,  name: 'Brute',       xp: 6,  tier: 'rare',   weakness: 'melee' },
-  stalker:     { health: 200,  speed: 9.5,   scale: 0.9,  bodyColor: 0x664400, coinDrop: 70,  dmg: 20,  name: 'Stalker',     xp: 6,  tier: 'rare',   weakness: 'pistol' },
-  spitter:     { health: 180,  speed: 7.5,   scale: 1.0,  bodyColor: 0x2a6633, coinDrop: 75,  dmg: 22,  name: 'Spitter',     xp: 6,  tier: 'rare',   weakness: 'melee' },
+  brute:       { health: 300,  speed: 6.5,   scale: 1.5,  bodyColor: 0xb03030, coinDrop: 85,  dmg: 30,  name: 'Brute',       xp: 6,  tier: 'rare',   weakness: 'melee' },
+  stalker:     { health: 200,  speed: 10.0,  scale: 0.9,  bodyColor: 0x664400, coinDrop: 70,  dmg: 22,  name: 'Stalker',     xp: 6,  tier: 'rare',   weakness: 'pistol' },
+  spitter:     { health: 180,  speed: 7.5,   scale: 1.0,  bodyColor: 0x2a6633, coinDrop: 75,  dmg: 25,  name: 'Spitter',     xp: 6,  tier: 'rare',   weakness: 'melee' },
   // Unique (200+ kills)
-  reaper:      { health: 800,  speed: 10.0,  scale: 1.6,  bodyColor: 0x1a0033, coinDrop: 170, dmg: 38,  name: 'Reaper',      xp: 12, tier: 'unique', weakness: 'pistol' },
-  juggernaut:  { health: 1200, speed: 5.5,   scale: 1.8,  bodyColor: 0x333344, coinDrop: 200, dmg: 45,  name: 'Juggernaut',  xp: 15, tier: 'unique', weakness: 'melee' },
-  banshee:     { health: 500,  speed: 11.0,  scale: 1.0,  bodyColor: 0x002244, coinDrop: 140, dmg: 30,  name: 'Banshee',     xp: 10, tier: 'unique', weakness: 'pistol' },
+  reaper:      { health: 800,  speed: 10.0,  scale: 1.6,  bodyColor: 0x1a0033, coinDrop: 170, dmg: 42,  name: 'Reaper',      xp: 12, tier: 'unique', weakness: 'pistol' },
+  juggernaut:  { health: 1200, speed: 5.5,   scale: 1.8,  bodyColor: 0x333344, coinDrop: 200, dmg: 50,  name: 'Juggernaut',  xp: 15, tier: 'unique', weakness: 'melee' },
+  banshee:     { health: 500,  speed: 11.5,  scale: 1.0,  bodyColor: 0x002244, coinDrop: 140, dmg: 33,  name: 'Banshee',     xp: 10, tier: 'unique', weakness: 'pistol' },
 };
 
 export const KILLSTREAK = {
