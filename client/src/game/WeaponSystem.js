@@ -828,13 +828,28 @@ export class WeaponSystem {
         }
       }
 
-      // Explosive weapons: area damage
-      if (this.config.explosive && this.game) {
-        this.applyExplosion(hitPoint, damage, damageMultiplier);
+      // Co-op: guest sends damage to host instead of applying locally
+      const isGuest = this.game && this.game.network && !this.game.network.isHost;
+
+      if (isGuest) {
+        // Guest: send damage request to host via server
+        this.game.network.sendNPCDamage({
+          npcId: index,
+          damage: damage,
+          isHeadshot: isHeadshot,
+          explosive: !!this.config.explosive,
+          explosionRadius: this.config.explosionRadius || 0,
+          damageMultiplier: damageMultiplier,
+        });
       } else {
-        this.game.npcManager.damageNPC(index, damage);
-        if (npc.health <= 0) {
-          this.game.onNPCKill(index);
+        // Host or solo: apply damage locally
+        if (this.config.explosive && this.game) {
+          this.applyExplosion(hitPoint, damage, damageMultiplier);
+        } else {
+          this.game.npcManager.damageNPC(index, damage);
+          if (npc.health <= 0) {
+            this.game.onNPCKill(index);
+          }
         }
       }
 
@@ -905,11 +920,29 @@ export class WeaponSystem {
   applyExplosion(center, directDamage, damageMultiplier) {
     const radius = this.config.explosionRadius || 8;
     const npcManager = this.game.npcManager;
+    const isGuest = this.game && this.game.network && !this.game.network.isHost;
 
-    // Visual explosion effect
+    // Visual explosion effect (always show)
     this.createExplosionEffect(center, radius);
 
-    // Damage all NPCs in radius
+    // Guest: send explosion damage to host for each NPC in radius
+    if (isGuest) {
+      for (let i = 0; i < npcManager.npcs.length; i++) {
+        const npc = npcManager.npcs[i];
+        if (!npc.alive) continue;
+        const dx = npc.mesh.position.x - center.x;
+        const dz = npc.mesh.position.z - center.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist <= radius) {
+          const falloff = 1.0 - (dist / radius) * 0.7;
+          const aoeDamage = Math.floor(directDamage * damageMultiplier * falloff);
+          this.game.network.sendNPCDamage({ npcId: i, damage: aoeDamage, isHeadshot: false });
+        }
+      }
+      return;
+    }
+
+    // Host/solo: apply damage locally
     const killList = [];
     for (let i = 0; i < npcManager.npcs.length; i++) {
       const npc = npcManager.npcs[i];

@@ -15,6 +15,10 @@ export class NPCManager {
     this.zombieLevel = 1;
     this.lastGrowlTime = 0;
 
+    // Co-op: host/guest mode
+    this.isHost = true; // default true (solo play or first player)
+    this.game = null;   // set by Game.js
+
     // Spitter projectiles
     this.spitterProjectiles = [];
 
@@ -24,6 +28,9 @@ export class NPCManager {
   }
 
   spawnInitialNPCs() {
+    // Only host spawns NPCs; guests wait for sync
+    if (!this.isHost) return;
+
     const spawnPoints = [
       { x: -30, z: -30 }, { x: 30, z: -30 },
       { x: -30, z: 30 },  { x: 30, z: 30 },
@@ -78,7 +85,7 @@ export class NPCManager {
     let health, speed, damage;
 
     if (type === 'boss') {
-      // Boss HP scales ×1.20 per boss kill
+      // Boss HP scales x1.20 per boss kill
       health = Math.floor(cfg.health * Math.pow(1.20, this.bossKillCount));
       // Boss ATK/Speed scale with zombie level
       const atkMul = 1 + (lvl - 1) * 0.05;
@@ -118,6 +125,7 @@ export class NPCManager {
       specialAttackTimer: type === 'spitter' ? 3 : type === 'banshee' ? 5 : type === 'boss' ? 6 : 0,
       bossCharging: false,
       bossChargeTimer: 0,
+      npcId: this.npcs.length, // unique ID for network sync
     };
 
     npc.mesh.position.set(x, 0, z);
@@ -128,11 +136,31 @@ export class NPCManager {
 
   spawnBoss() {
     if (this.bossAlive) return;
+    if (!this.isHost) return; // Only host spawns bosses
     this.bossAlive = true;
     const angle = Math.random() * Math.PI * 2;
     const x = Math.cos(angle) * 40;
     const z = Math.sin(angle) * 40;
-    this.spawnNPC(x, z, 'boss');
+    const boss = this.spawnNPC(x, z, 'boss');
+
+    // Notify guests about boss spawn
+    if (this.game && this.game.network) {
+      this.game.network.sendBossSpawn({
+        x, z,
+        health: boss.health,
+        maxHealth: boss.maxHealth,
+        npcId: boss.npcId,
+      });
+    }
+  }
+
+  // Guest receives boss spawn from host
+  onRemoteBossSpawn(data) {
+    if (this.isHost) return;
+    this.bossAlive = true;
+    const boss = this.spawnNPC(data.x, data.z, 'boss');
+    boss.health = data.health;
+    boss.maxHealth = data.maxHealth;
   }
 
   // Called when boss dies - level up all zombies
@@ -155,6 +183,105 @@ export class NPCManager {
 
       this.updateLevelLabel(npc);
     }
+  }
+
+  // ─── Co-op: Host generates state for network sync ───
+  getStateForSync() {
+    const states = [];
+    for (let i = 0; i < this.npcs.length; i++) {
+      const npc = this.npcs[i];
+      states.push({
+        id: i,
+        type: npc.type,
+        alive: npc.alive,
+        health: npc.health,
+        maxHealth: npc.maxHealth,
+        x: npc.mesh.position.x,
+        z: npc.mesh.position.z,
+        ry: npc.mesh.rotation.y,
+        state: npc.state,
+        isBoss: npc.isBoss,
+      });
+    }
+    return states;
+  }
+
+  // ─── Co-op: Guest receives state from host ───
+  syncFromHost(states) {
+    if (this.isHost) return;
+
+    for (const s of states) {
+      let npc = this.npcs[s.id];
+
+      if (!npc) {
+        // NPC doesn't exist yet on guest, create it
+        const cfg = NPC_TYPES[s.type];
+        if (!cfg) continue;
+        npc = this.spawnNPC(s.x, s.z, s.type);
+        npc.npcId = s.id;
+      }
+
+      // If type changed (respawned as different type), recreate mesh
+      if (npc.type !== s.type && s.alive) {
+        const cfg = NPC_TYPES[s.type];
+        if (!cfg) continue;
+        // Remove old mesh
+        this.scene.remove(npc.mesh);
+        npc.mesh.traverse(child => {
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) {
+            if (child.material.map) child.material.map.dispose();
+            child.material.dispose();
+          }
+        });
+        // Create new mesh
+        npc.type = s.type;
+        npc.typeName = cfg.name;
+        npc.tier = cfg.tier || 'normal';
+        npc.weakness = cfg.weakness || null;
+        npc.isBoss = s.isBoss;
+        npc.mesh = this.createNPCMesh(cfg, this.zombieLevel);
+        npc.hpFill = null;
+        this.scene.add(npc.mesh);
+      }
+
+      // Sync alive state
+      if (s.alive && !npc.alive) {
+        // NPC revived/respawned
+        npc.alive = true;
+        if (!npc.mesh.parent) this.scene.add(npc.mesh);
+      } else if (!s.alive && npc.alive) {
+        // NPC died
+        npc.alive = false;
+        if (this.sound) this.sound.playZombieDeath();
+        this.scene.remove(npc.mesh);
+        if (s.isBoss) this.bossAlive = false;
+      }
+
+      if (!npc.alive) continue;
+
+      // Smooth position interpolation
+      npc.mesh.position.x += (s.x - npc.mesh.position.x) * 0.3;
+      npc.mesh.position.z += (s.z - npc.mesh.position.z) * 0.3;
+      npc.mesh.rotation.y = s.ry;
+
+      // Sync health
+      npc.health = s.health;
+      npc.maxHealth = s.maxHealth;
+      npc.state = s.state;
+      npc.isBoss = s.isBoss;
+    }
+  }
+
+  // ─── Co-op: Host migration - switch from guest to host ───
+  becomeHost() {
+    console.log('[NPCManager] Becoming host');
+    this.isHost = true;
+    // If we have no NPCs, spawn initial set
+    if (this.npcs.length === 0) {
+      this.spawnInitialNPCs();
+    }
+    // Start running AI for all existing NPCs
   }
 
   createLevelLabel(level, isBoss, tier = 'normal') {
@@ -526,42 +653,48 @@ export class NPCManager {
   }
 
   update(delta, playerPos) {
+    // Guests: only update HP bars and walk animation (positions come from host sync)
+    // Host: full AI update
     const px = playerPos.x, pz = playerPos.z;
 
     for (const npc of this.npcs) {
       if (!npc.alive) continue;
 
-      const npcPos = npc.mesh.position;
-      const ddx = npcPos.x - px, ddz = npcPos.z - pz;
-      const distToPlayer = Math.sqrt(ddx * ddx + ddz * ddz);
+      if (this.isHost) {
+        // Host runs full AI
+        const npcPos = npc.mesh.position;
+        const ddx = npcPos.x - px, ddz = npcPos.z - pz;
+        const distToPlayer = Math.sqrt(ddx * ddx + ddz * ddz);
 
-      const detectRange = npc.isBoss ? 60 : NPC.DETECT_RANGE;
-      const attackRange = npc.isBoss ? 4 : NPC.ATTACK_RANGE;
+        const detectRange = npc.isBoss ? 60 : NPC.DETECT_RANGE;
+        const attackRange = npc.isBoss ? 4 : NPC.ATTACK_RANGE;
 
-      if (npc.aggroTimer > 0) npc.aggroTimer -= delta;
+        if (npc.aggroTimer > 0) npc.aggroTimer -= delta;
 
-      if (distToPlayer < attackRange) {
-        npc.state = 'attack';
-      } else if (distToPlayer < detectRange || npc.aggroTimer > 0) {
-        npc.state = 'chase';
-      } else {
-        npc.state = 'patrol';
-      }
+        if (distToPlayer < attackRange) {
+          npc.state = 'attack';
+        } else if (distToPlayer < detectRange || npc.aggroTimer > 0) {
+          npc.state = 'chase';
+        } else {
+          npc.state = 'patrol';
+        }
 
-      switch (npc.state) {
-        case 'patrol': this.updatePatrol(npc, delta); break;
-        case 'chase':  this.updateChase(npc, delta, playerPos); break;
-        case 'attack': this.updateAttack(npc, delta, playerPos); break;
-      }
+        switch (npc.state) {
+          case 'patrol': this.updatePatrol(npc, delta); break;
+          case 'chase':  this.updateChase(npc, delta, playerPos); break;
+          case 'attack': this.updateAttack(npc, delta, playerPos); break;
+        }
 
-      if (this.sound && distToPlayer < 20 && npc.state !== 'patrol') {
-        const now = performance.now();
-        if (now - this.lastGrowlTime > 3000) {
-          this.lastGrowlTime = now;
-          this.sound.playZombieGrowl();
+        if (this.sound && distToPlayer < 20 && npc.state !== 'patrol') {
+          const now = performance.now();
+          if (now - this.lastGrowlTime > 3000) {
+            this.lastGrowlTime = now;
+            this.sound.playZombieGrowl();
+          }
         }
       }
 
+      // Both host and guest: animate walk + update HP bar
       this.animateWalk(npc, delta);
 
       const hpFill = npc.hpFill || (npc.hpFill = npc.mesh.getObjectByName('hpFill'));
@@ -582,6 +715,11 @@ export class NPCManager {
           hpFill.material.emissive.setHex(color);
         }
       }
+    }
+
+    // Host: send NPC state to guests
+    if (this.isHost && this.game && this.game.network) {
+      this.game.network.sendNPCStateSync(this.getStateForSync());
     }
   }
 
@@ -617,6 +755,9 @@ export class NPCManager {
   }
 
   updateSpecialAttacks(delta, playerPos) {
+    // Only host runs special attack logic
+    if (!this.isHost) return;
+
     const px = playerPos.x, pz = playerPos.z;
 
     for (const npc of this.npcs) {
@@ -914,13 +1055,16 @@ export class NPCManager {
         return;
       }
 
+      // Only host handles respawn
+      if (!this.isHost) return;
+
       setTimeout(() => {
         const newType = this.randomType();
         const cfg = NPC_TYPES[newType];
         const lvl = this.zombieLevel;
-        const atkMul = 1 + (lvl - 1) * 0.08;
-        const hpMul = 1 + (lvl - 1) * 0.10;
-        const spdMul = 1 + (lvl - 1) * 0.03;
+        const atkMul = 1 + (lvl - 1) * 0.05;
+        const hpMul = 1 + (lvl - 1) * 0.07;
+        const spdMul = 1 + (lvl - 1) * 0.02;
 
         npc.type = newType;
         npc.typeName = cfg.name;

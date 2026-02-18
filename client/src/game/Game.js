@@ -42,6 +42,7 @@ export class Game {
     this.player.map = this.map;
     this.npcManager.map = this.map;
     this.npcManager.sound = this.sound;
+    this.npcManager.game = this;
 
     // Kill tracking
     this.killCount = 0;
@@ -117,9 +118,15 @@ export class Game {
     this.sound.startBGM();
     this.map.build();
     this.player.init();
-    this.npcManager.spawnInitialNPCs();
     this.mobileControls.init();
     this.network.connect();
+    // NPCs will be spawned after HOST_ASSIGN event
+    // For now, spawn as host (will be overridden if guest)
+    setTimeout(() => {
+      if (this.npcManager.isHost && this.npcManager.npcs.length === 0) {
+        this.npcManager.spawnInitialNPCs();
+      }
+    }, 1000);
     this.loop();
   }
 
@@ -129,7 +136,121 @@ export class Game {
     this.wave = state.wave;
     this.npcManager.totalKillCount = state.killCount;
     this.npcManager.zombieLevel = state.zombieLevel;
+    if (state.bossAlive !== undefined) {
+      this.npcManager.bossAlive = state.bossAlive;
+    }
     this.hud.updateKillCount(this.killCount);
+  }
+
+  // ─── Co-op: Become host (first join or migration) ───
+  onBecomeHost(roomState) {
+    console.log('[Game] Becoming host');
+    this.npcManager.isHost = true;
+    this.npcManager.becomeHost();
+    if (roomState) {
+      this.syncGameState(roomState);
+    }
+  }
+
+  // ─── Co-op: Host receives NPC damage from guest ───
+  onRemoteNPCDamage(data) {
+    if (!this.network.isHost) return;
+    const { npcId, damage, isHeadshot, fromId } = data;
+    const npc = this.npcManager.npcs[npcId];
+    if (!npc || !npc.alive) return;
+
+    this.npcManager.damageNPC(npcId, damage);
+
+    // If NPC died, process kill (rewards go to the guest who killed)
+    if (npc.health <= 0) {
+      // Host processes kill count and boss logic
+      this.network.sendNPCKill(npc.isBoss);
+      this.killCount++;
+      this.npcManager.totalKillCount = this.killCount;
+      this.hud.updateKillCount(this.killCount);
+      this.hud.addKillFeedEntry('Ally', npc.typeName || 'Zombie');
+
+      // Airdrop trigger
+      this.airDropKillTracker++;
+      if (this.airDropKillTracker >= AIRDROP.KILL_INTERVAL) {
+        this.airDropKillTracker = 0;
+        this.spawnAirDrop();
+        this.network.sendAirdropSpawn({
+          x: this.airDrops[this.airDrops.length - 1].mesh.position.x,
+          z: this.airDrops[this.airDrops.length - 1].mesh.position.z,
+        });
+      }
+
+      if (npc.isBoss) {
+        this.bossKillCount++;
+        this.wave = this.bossKillCount + 1;
+        this.npcManager.levelUpZombies();
+        this.hud.showZombieLevelUp(this.npcManager.zombieLevel);
+        this.network.sendBossDeath({ bossKillCount: this.bossKillCount });
+        this.hud.showBossAlert('BOSS DEFEATED!');
+        this.hud.showScreenFlash(0x8800ff);
+        this.spawnAirDrop();
+      }
+
+      // Boss spawn check
+      if (this.killCount >= 25 && this.killCount % 25 === 0 && !this.npcManager.bossAlive) {
+        this.npcManager.spawnBoss();
+        this.hud.showBossAlert('BOSS ZOMBIE APPEARED!');
+        this.hud.screenShake();
+      }
+    }
+  }
+
+  // ─── Co-op: Guest receives boss death from host ───
+  onRemoteBossDeath(data) {
+    this.bossKillCount = data.bossKillCount || this.bossKillCount + 1;
+    this.wave = this.bossKillCount + 1;
+    this.npcManager.bossAlive = false;
+    this.npcManager.levelUpZombies();
+    this.hud.showZombieLevelUp(this.npcManager.zombieLevel);
+    this.hud.showBossAlert('BOSS DEFEATED!');
+    this.hud.showScreenFlash(0x8800ff);
+    // Guest gets assist rewards
+    this.player.health = Math.min(this.player.health + Math.floor(this.player.maxHealth * 0.3), this.player.maxHealth);
+    this.hud.shopAvailable = true;
+  }
+
+  // ─── Co-op: Guest receives airdrop spawn from host ───
+  onRemoteAirdropSpawn(data) {
+    this.spawnAirDropAt(data.x, data.z);
+  }
+
+  spawnAirDropAt(x, z) {
+    const group = new THREE.Group();
+    const boxGeo = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+    const boxMat = new THREE.MeshStandardMaterial({
+      color: 0xffcc00, emissive: 0xffaa00, emissiveIntensity: 0.5,
+      metalness: 0.4, roughness: 0.3,
+    });
+    const box = new THREE.Mesh(boxGeo, boxMat);
+    box.position.y = 1.5;
+    box.castShadow = true;
+    const beaconGeo = new THREE.CylinderGeometry(0.05, 0.05, 8, 4);
+    const beaconMat = new THREE.MeshBasicMaterial({
+      color: 0xffcc00, transparent: true, opacity: 0.4,
+    });
+    const beacon = new THREE.Mesh(beaconGeo, beaconMat);
+    beacon.position.y = 5;
+    const ringGeo = new THREE.RingGeometry(1.5, 2, 24);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0xffcc00, transparent: true, opacity: 0.3, side: THREE.DoubleSide,
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.05;
+    group.add(box, beacon, ring);
+    group.position.set(x, 0, z);
+    group.userData.isEffect = true;
+    group.traverse(c => { c.userData.isEffect = true; });
+    this.scene.add(group);
+    const drop = { mesh: group, box, life: AIRDROP.LIFETIME, collected: false };
+    this.airDrops.push(drop);
+    this.hud.showAirdropAlert();
   }
 
   onNPCKill(npcIndex) {
@@ -150,21 +271,21 @@ export class Game {
     this.comboCount++;
     this.hud.updateCombo(this.comboCount);
 
-    if (this.comboCount === 10) {
+    if (this.comboCount === KILLSTREAK.INFINITE_AMMO.combo) {
       this.slowMotionTimer = 2.0;
       this.hud.showBossAlert('SLOW MOTION!');
       this.killStreakBuffs.infiniteAmmo = KILLSTREAK.INFINITE_AMMO.duration;
       this.hud.showBossAlert(KILLSTREAK.INFINITE_AMMO.label + '!');
     }
-    if (this.comboCount === 15) {
+    if (this.comboCount === KILLSTREAK.SPEED_BOOST.combo) {
       this.killStreakBuffs.speedBoost = KILLSTREAK.SPEED_BOOST.duration;
       this.hud.showBossAlert(KILLSTREAK.SPEED_BOOST.label + '!');
     }
-    if (this.comboCount === 20) {
+    if (this.comboCount === KILLSTREAK.DAMAGE_BOOST.combo) {
       this.killStreakBuffs.damageBoost = KILLSTREAK.DAMAGE_BOOST.duration;
       this.hud.showBossAlert(KILLSTREAK.DAMAGE_BOOST.label + '!');
     }
-    if (this.comboCount === 30) {
+    if (this.comboCount === KILLSTREAK.GOD_MODE.combo) {
       this.killStreakBuffs.godMode = KILLSTREAK.GOD_MODE.duration;
       this.hud.showBossAlert(KILLSTREAK.GOD_MODE.label + '!');
       this.hud.showScreenFlash(0xffcc00);
@@ -214,11 +335,19 @@ export class Game {
     const chargeAmt = tierCharge[npcCfg.tier] || ULTIMATE.CHARGE_NORMAL;
     this.ultimateCharge = Math.min(100, this.ultimateCharge + chargeAmt);
 
-    // Airdrop trigger (every 15 kills)
+    // Airdrop trigger (every N kills)
     this.airDropKillTracker++;
     if (this.airDropKillTracker >= AIRDROP.KILL_INTERVAL) {
       this.airDropKillTracker = 0;
       this.spawnAirDrop();
+      // Notify guests about airdrop
+      if (this.network.isHost && this.airDrops.length > 0) {
+        const lastDrop = this.airDrops[this.airDrops.length - 1];
+        this.network.sendAirdropSpawn({
+          x: lastDrop.mesh.position.x,
+          z: lastDrop.mesh.position.z,
+        });
+      }
     }
 
     // Bonus round trigger (every 50 kills)
@@ -291,6 +420,11 @@ export class Game {
       this.npcManager.levelUpZombies();
       this.hud.showZombieLevelUp(this.npcManager.zombieLevel);
 
+      // Notify guests about boss death (host only)
+      if (this.network.isHost) {
+        this.network.sendBossDeath({ bossKillCount: this.bossKillCount });
+      }
+
       // Open shop (one-time after boss defeat)
       this.hud.shopAvailable = true;
       setTimeout(() => this.hud.toggleShop(), 1500);
@@ -300,6 +434,15 @@ export class Game {
 
       // Boss kill: airdrop bonus
       this.spawnAirDrop();
+
+      // Notify guests about airdrop
+      if (this.network.isHost && this.airDrops.length > 0) {
+        const lastDrop = this.airDrops[this.airDrops.length - 1];
+        this.network.sendAirdropSpawn({
+          x: lastDrop.mesh.position.x,
+          z: lastDrop.mesh.position.z,
+        });
+      }
     } else {
       this.hud.addKillFeedEntry('You', npc.typeName || 'Zombie');
     }

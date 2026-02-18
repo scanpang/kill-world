@@ -190,4 +190,12 @@ export const EVENTS = {
   CHAT_MESSAGE: 'chat:message',
   GAME_STATE_SYNC: 'game:state_sync',
   NPC_KILL: 'npc:kill',
+  // Co-op multiplayer events
+  HOST_ASSIGN: 'host:assign',
+  HOST_CHANGED: 'host:changed',
+  NPC_STATE_SYNC: 'npc:state_sync',
+  NPC_DAMAGE: 'npc:damage',
+  BOSS_SPAWN: 'boss:spawn',
+  BOSS_DEATH: 'boss:death',
+  AIRDROP_SPAWN: 'airdrop:spawn',
 };

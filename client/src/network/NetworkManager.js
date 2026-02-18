@@ -7,8 +7,11 @@ export class NetworkManager {
     this.game = game;
     this.socket = null;
     this.connected = false;
+    this.isHost = false;
     this.lastSendTime = 0;
     this.sendInterval = 50; // ms (20 updates/sec)
+    this.npcSyncInterval = 100; // ms (10 NPC syncs/sec)
+    this.lastNpcSyncTime = 0;
   }
 
   connect() {
@@ -49,6 +52,24 @@ export class NetworkManager {
       }
     });
 
+    // Host assignment
+    this.socket.on(EVENTS.HOST_ASSIGN, (data) => {
+      const wasHost = this.isHost;
+      this.isHost = data.isHost;
+      console.log(`[Network] Host assigned: ${this.isHost}`);
+      if (data.isHost && !wasHost) {
+        // Became host (either first join or migration)
+        this.game.onBecomeHost(data.roomState || null);
+      }
+    });
+
+    // Host changed notification (for guests)
+    this.socket.on(EVENTS.HOST_CHANGED, (data) => {
+      if (data.hostId !== this.socket.id) {
+        console.log(`[Network] Host changed to: ${data.hostId}`);
+      }
+    });
+
     // Game state sync (from server on NPC kills)
     this.socket.on(EVENTS.GAME_STATE_SYNC, (state) => {
       this.game.syncGameState(state);
@@ -85,9 +106,41 @@ export class NetworkManager {
       this.game.hud.addKillFeedEntry(data.killerName, data.victimName);
     });
 
-    // NPC updates from server
-    this.socket.on(EVENTS.NPC_UPDATE, (npcs) => {
-      // Sync NPC states from server (for authoritative server mode)
+    // ─── Co-op NPC Events ───
+
+    // NPC state sync from host (guests receive this)
+    this.socket.on(EVENTS.NPC_STATE_SYNC, (data) => {
+      if (!this.isHost) {
+        this.game.npcManager.syncFromHost(data);
+      }
+    });
+
+    // NPC damage request from guest (host receives this)
+    this.socket.on(EVENTS.NPC_DAMAGE, (data) => {
+      if (this.isHost) {
+        this.game.onRemoteNPCDamage(data);
+      }
+    });
+
+    // Boss spawn (guests receive this from host)
+    this.socket.on(EVENTS.BOSS_SPAWN, (data) => {
+      if (!this.isHost) {
+        this.game.npcManager.onRemoteBossSpawn(data);
+      }
+    });
+
+    // Boss death (guests receive this from host)
+    this.socket.on(EVENTS.BOSS_DEATH, (data) => {
+      if (!this.isHost) {
+        this.game.onRemoteBossDeath(data);
+      }
+    });
+
+    // Airdrop spawn (guests receive this from host)
+    this.socket.on(EVENTS.AIRDROP_SPAWN, (data) => {
+      if (!this.isHost) {
+        this.game.onRemoteAirdropSpawn(data);
+      }
     });
   }
 
@@ -120,6 +173,41 @@ export class NetworkManager {
   sendNPCKill(isBoss) {
     if (!this.connected) return;
     this.socket.emit(EVENTS.NPC_KILL, { isBoss });
+  }
+
+  // Host sends NPC state to guests
+  sendNPCStateSync(npcStates) {
+    if (!this.connected || !this.isHost) return;
+
+    const now = performance.now();
+    if (now - this.lastNpcSyncTime < this.npcSyncInterval) return;
+    this.lastNpcSyncTime = now;
+
+    this.socket.emit(EVENTS.NPC_STATE_SYNC, npcStates);
+  }
+
+  // Guest sends damage request to host
+  sendNPCDamage(data) {
+    if (!this.connected || this.isHost) return;
+    this.socket.emit(EVENTS.NPC_DAMAGE, data);
+  }
+
+  // Host broadcasts boss spawn
+  sendBossSpawn(data) {
+    if (!this.connected || !this.isHost) return;
+    this.socket.emit(EVENTS.BOSS_SPAWN, data);
+  }
+
+  // Host broadcasts boss death
+  sendBossDeath(data) {
+    if (!this.connected || !this.isHost) return;
+    this.socket.emit(EVENTS.BOSS_DEATH, data);
+  }
+
+  // Host broadcasts airdrop
+  sendAirdropSpawn(data) {
+    if (!this.connected || !this.isHost) return;
+    this.socket.emit(EVENTS.AIRDROP_SPAWN, data);
   }
 
   disconnect() {

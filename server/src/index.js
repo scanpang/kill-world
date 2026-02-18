@@ -21,8 +21,12 @@ const players = new Map();
 const TEAM_COLORS = [0xe74c3c, 0x3498db, 0x2ecc71, 0xf39c12, 0x9b59b6, 0x1abc9c];
 
 // ─── Room State (host-synced) ───
-let roomState = { wave: 1, killCount: 0, bossKillCount: 0, zombieLevel: 1 };
+let roomState = { wave: 1, killCount: 0, bossKillCount: 0, zombieLevel: 1, bossAlive: false, bossHealth: 0, bossMaxHealth: 0 };
 const joinOrder = []; // track connection order for host succession
+
+function getHostId() {
+  return joinOrder.length > 0 ? joinOrder[0] : null;
+}
 
 // ─── Socket Handling ───
 io.on('connection', (socket) => {
@@ -45,14 +49,19 @@ io.on('connection', (socket) => {
   players.set(socket.id, playerData);
   joinOrder.push(socket.id);
 
-  // Send current state to new player (include roomState)
+  const isHost = getHostId() === socket.id;
+
+  // Send current state to new player (include roomState + host info)
   const currentPlayers = Object.fromEntries(players);
   socket.emit(EVENTS.STATE_UPDATE, { players: currentPlayers, roomState });
+
+  // Tell this player if they are host
+  socket.emit(EVENTS.HOST_ASSIGN, { isHost });
 
   // Notify others
   socket.broadcast.emit(EVENTS.PLAYER_JOIN, playerData);
 
-  console.log(`[Server] Players online: ${players.size}`);
+  console.log(`[Server] Players online: ${players.size} | Host: ${getHostId()} | isHost: ${isHost}`);
 
   // ─── Movement ───
   socket.on(EVENTS.PLAYER_MOVE, (data) => {
@@ -70,7 +79,7 @@ io.on('connection', (socket) => {
     });
   });
 
-  // ─── Shooting (server authoritative damage) ───
+  // ─── Shooting (server authoritative damage for PvP) ───
   socket.on(EVENTS.PLAYER_SHOOT, (data) => {
     const shooter = players.get(socket.id);
     if (!shooter || !data.targetId) return;
@@ -132,12 +141,54 @@ io.on('connection', (socket) => {
       roomState.bossKillCount++;
       roomState.wave = roomState.bossKillCount + 1;
       roomState.zombieLevel++;
+      roomState.bossAlive = false;
+      roomState.bossHealth = 0;
     }
     io.emit(EVENTS.GAME_STATE_SYNC, roomState);
   });
 
+  // ─── NPC State Sync (host → server → guests) ───
+  socket.on(EVENTS.NPC_STATE_SYNC, (data) => {
+    // Only accept from host
+    if (socket.id !== getHostId()) return;
+    socket.broadcast.emit(EVENTS.NPC_STATE_SYNC, data);
+  });
+
+  // ─── NPC Damage (guest → server → host) ───
+  socket.on(EVENTS.NPC_DAMAGE, (data) => {
+    const hostId = getHostId();
+    if (!hostId || socket.id === hostId) return;
+    // Forward damage request to host, include who sent it
+    io.to(hostId).emit(EVENTS.NPC_DAMAGE, { ...data, fromId: socket.id });
+  });
+
+  // ─── Boss Spawn (host → server → all) ───
+  socket.on(EVENTS.BOSS_SPAWN, (data) => {
+    if (socket.id !== getHostId()) return;
+    roomState.bossAlive = true;
+    roomState.bossHealth = data.health || 0;
+    roomState.bossMaxHealth = data.maxHealth || data.health || 0;
+    socket.broadcast.emit(EVENTS.BOSS_SPAWN, data);
+  });
+
+  // ─── Boss Death (host → server → all) ───
+  socket.on(EVENTS.BOSS_DEATH, (data) => {
+    if (socket.id !== getHostId()) return;
+    roomState.bossAlive = false;
+    roomState.bossHealth = 0;
+    socket.broadcast.emit(EVENTS.BOSS_DEATH, data);
+  });
+
+  // ─── Airdrop Spawn (host → server → guests) ───
+  socket.on(EVENTS.AIRDROP_SPAWN, (data) => {
+    if (socket.id !== getHostId()) return;
+    socket.broadcast.emit(EVENTS.AIRDROP_SPAWN, data);
+  });
+
   // ─── Disconnect ───
   socket.on('disconnect', () => {
+    const wasHost = socket.id === getHostId();
+
     players.delete(socket.id);
     const idx = joinOrder.indexOf(socket.id);
     if (idx !== -1) joinOrder.splice(idx, 1);
@@ -147,8 +198,17 @@ io.on('connection', (socket) => {
 
     // Reset room state when all players leave
     if (players.size === 0) {
-      roomState = { wave: 1, killCount: 0, bossKillCount: 0, zombieLevel: 1 };
-      console.log('[Server] All players left — roomState reset');
+      roomState = { wave: 1, killCount: 0, bossKillCount: 0, zombieLevel: 1, bossAlive: false, bossHealth: 0, bossMaxHealth: 0 };
+      console.log('[Server] All players left - roomState reset');
+    } else if (wasHost) {
+      // Host migration: assign next player as host
+      const newHostId = getHostId();
+      if (newHostId) {
+        console.log(`[Server] Host migrated: ${socket.id} -> ${newHostId}`);
+        io.to(newHostId).emit(EVENTS.HOST_ASSIGN, { isHost: true, roomState });
+        // Notify all others about host change
+        io.emit(EVENTS.HOST_CHANGED, { hostId: newHostId });
+      }
     }
   });
 });
@@ -158,6 +218,7 @@ app.get('/api/status', (req, res) => {
   res.json({
     players: players.size,
     uptime: process.uptime(),
+    host: getHostId(),
   });
 });
 
@@ -166,7 +227,7 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`
   ╔═══════════════════════════════════════╗
-  ║   🎮 KILL WORLD Server               ║
+  ║   KILL WORLD Server                  ║
   ║   Port: ${PORT}                          ║
   ║   Ready for connections...            ║
   ╚═══════════════════════════════════════╝
