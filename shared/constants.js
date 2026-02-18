@@ -14,9 +14,9 @@ export const SAFE_ZONE = {
 
 export const PLAYER = {
   SPEED: 14,
-  SPRINT_SPEED: 24,
+  SPRINT_SPEED: 26,
   JUMP_FORCE: 10,
-  MAX_HEALTH: 100,
+  MAX_HEALTH: 120,
   HEIGHT: 4,
   RADIUS: 0.7,
   RESPAWN_TIME: 3,
@@ -99,13 +99,13 @@ export const SHOP_ITEMS = [
   { id: 'BloodBlade', name: '블러드 블레이드', price: 2000, desc: '피의 검 (75 데미지, 4/초)', category: 'weapon', slot: 2, tier: 'legendary' },
   { id: 'WorldBreaker', name: '월드 브레이커', price: 3500, desc: '세계의 파괴자 (220 데미지)', category: 'weapon', slot: 2, tier: 'legendary' },
   // Consumables
-  { id: 'HealthPack', name: '회복팩', price: 30, desc: '최대 HP의 30% 회복', category: 'consumable' },
-  { id: 'MaxHPUp', name: 'HP 강화', price: 100, desc: '최대 HP +20', category: 'consumable' },
-  { id: 'MagUp', name: '탄창 강화', price: 150, desc: '탄창 용량 +20%', category: 'consumable' },
-  { id: 'SpeedUp', name: '이속 강화', price: 200, desc: '이동속도 +5%', category: 'consumable' },
-  { id: 'CritUp', name: '치명타 강화', price: 250, desc: '치명타 확률 +5%', category: 'consumable' },
-  { id: 'FireRateUp', name: '공속 강화', price: 200, desc: '공격속도 +10%', category: 'consumable' },
-  { id: 'DamageUp', name: '공격력 강화', price: 200, desc: '공격력 +10%', category: 'consumable' },
+  { id: 'HealthPack', name: '회복팩', price: 20, desc: '최대 HP의 30% 회복', category: 'consumable' },
+  { id: 'MaxHPUp', name: 'HP 강화', price: 75, desc: '최대 HP +20', category: 'consumable' },
+  { id: 'MagUp', name: '탄창 강화', price: 120, desc: '탄창 용량 +20%', category: 'consumable' },
+  { id: 'SpeedUp', name: '이속 강화', price: 150, desc: '이동속도 +5%', category: 'consumable' },
+  { id: 'CritUp', name: '치명타 강화', price: 200, desc: '치명타 확률 +5%', category: 'consumable' },
+  { id: 'FireRateUp', name: '공속 강화', price: 150, desc: '공격속도 +10%', category: 'consumable' },
+  { id: 'DamageUp', name: '공격력 강화', price: 150, desc: '공격력 +10%', category: 'consumable' },
 ];
 
 export const NPC = {
@@ -122,26 +122,26 @@ export const NPC = {
 export const WEAKNESS_DAMAGE_MULTIPLIER = 2.0;
 
 export const NPC_TYPES = {
-  normal:      { health: 50,   speed: 7.0,   scale: 1,    bodyColor: 0x8b0000, coinDrop: 10,  dmg: 10,  name: 'Zombie',      xp: 1,  tier: 'normal', weakness: null },
-  fast:        { health: 70,   speed: 9.0,   scale: 0.85, bodyColor: 0xcc4400, coinDrop: 20,  dmg: 20,  name: 'Runner',      xp: 2,  tier: 'normal', weakness: null },
-  tank:        { health: 220,  speed: 8.0,   scale: 1.35, bodyColor: 0x2d1b69, coinDrop: 30,  dmg: 25,  name: 'Tank',        xp: 3,  tier: 'normal', weakness: null },
-  shield:      { health: 120,  speed: 6.0,   scale: 1.1,  bodyColor: 0x2a5a2a, coinDrop: 25,  dmg: 15,  name: 'Shield',      xp: 2,  tier: 'normal', weakness: null },
-  boss:        { health: 3000, speed: 9.5,   scale: 2.5,  bodyColor: 0x4a0080, coinDrop: 300, dmg: 45,  name: 'BOSS',        xp: 15, tier: 'boss',   weakness: null },
+  normal:      { health: 50,   speed: 7.0,   scale: 1,    bodyColor: 0x8b0000, coinDrop: 15,  dmg: 8,   name: 'Zombie',      xp: 2,  tier: 'normal', weakness: null },
+  fast:        { health: 70,   speed: 9.0,   scale: 0.85, bodyColor: 0xcc4400, coinDrop: 30,  dmg: 15,  name: 'Runner',      xp: 3,  tier: 'normal', weakness: null },
+  tank:        { health: 220,  speed: 8.0,   scale: 1.35, bodyColor: 0x2d1b69, coinDrop: 40,  dmg: 20,  name: 'Tank',        xp: 4,  tier: 'normal', weakness: null },
+  shield:      { health: 120,  speed: 6.0,   scale: 1.1,  bodyColor: 0x2a5a2a, coinDrop: 35,  dmg: 12,  name: 'Shield',      xp: 3,  tier: 'normal', weakness: null },
+  boss:        { health: 2500, speed: 9.5,   scale: 2.5,  bodyColor: 0x4a0080, coinDrop: 500, dmg: 45,  name: 'BOSS',        xp: 20, tier: 'boss',   weakness: null },
   // Rare (100+ kills)
-  brute:       { health: 300,  speed: 6.5,   scale: 1.5,  bodyColor: 0xb03030, coinDrop: 60,  dmg: 35,  name: 'Brute',       xp: 5,  tier: 'rare',   weakness: 'melee' },
-  stalker:     { health: 200,  speed: 11.0,  scale: 0.9,  bodyColor: 0x664400, coinDrop: 50,  dmg: 25,  name: 'Stalker',     xp: 5,  tier: 'rare',   weakness: 'pistol' },
-  spitter:     { health: 180,  speed: 7.5,   scale: 1.0,  bodyColor: 0x2a6633, coinDrop: 55,  dmg: 30,  name: 'Spitter',     xp: 5,  tier: 'rare',   weakness: 'melee' },
+  brute:       { health: 300,  speed: 6.5,   scale: 1.5,  bodyColor: 0xb03030, coinDrop: 85,  dmg: 28,  name: 'Brute',       xp: 6,  tier: 'rare',   weakness: 'melee' },
+  stalker:     { health: 200,  speed: 9.5,   scale: 0.9,  bodyColor: 0x664400, coinDrop: 70,  dmg: 20,  name: 'Stalker',     xp: 6,  tier: 'rare',   weakness: 'pistol' },
+  spitter:     { health: 180,  speed: 7.5,   scale: 1.0,  bodyColor: 0x2a6633, coinDrop: 75,  dmg: 22,  name: 'Spitter',     xp: 6,  tier: 'rare',   weakness: 'melee' },
   // Unique (200+ kills)
-  reaper:      { health: 800,  speed: 10.0,  scale: 1.6,  bodyColor: 0x1a0033, coinDrop: 120, dmg: 50,  name: 'Reaper',      xp: 10, tier: 'unique', weakness: 'pistol' },
-  juggernaut:  { health: 1200, speed: 5.5,   scale: 1.8,  bodyColor: 0x333344, coinDrop: 150, dmg: 60,  name: 'Juggernaut',  xp: 12, tier: 'unique', weakness: 'melee' },
-  banshee:     { health: 500,  speed: 13.0,  scale: 1.0,  bodyColor: 0x002244, coinDrop: 100, dmg: 40,  name: 'Banshee',     xp: 8,  tier: 'unique', weakness: 'pistol' },
+  reaper:      { health: 800,  speed: 10.0,  scale: 1.6,  bodyColor: 0x1a0033, coinDrop: 170, dmg: 38,  name: 'Reaper',      xp: 12, tier: 'unique', weakness: 'pistol' },
+  juggernaut:  { health: 1200, speed: 5.5,   scale: 1.8,  bodyColor: 0x333344, coinDrop: 200, dmg: 45,  name: 'Juggernaut',  xp: 15, tier: 'unique', weakness: 'melee' },
+  banshee:     { health: 500,  speed: 11.0,  scale: 1.0,  bodyColor: 0x002244, coinDrop: 140, dmg: 30,  name: 'Banshee',     xp: 10, tier: 'unique', weakness: 'pistol' },
 };
 
 export const KILLSTREAK = {
-  INFINITE_AMMO: { combo: 10, duration: 5, label: 'INFINITE AMMO' },
-  SPEED_BOOST:   { combo: 15, duration: 5, label: 'SPEED BOOST' },
-  DAMAGE_BOOST:  { combo: 20, duration: 5, label: 'DAMAGE x3' },
-  GOD_MODE:      { combo: 30, duration: 3, label: 'GOD MODE' },
+  INFINITE_AMMO: { combo: 8,  duration: 6, label: 'INFINITE AMMO' },
+  SPEED_BOOST:   { combo: 12, duration: 6, label: 'SPEED BOOST' },
+  DAMAGE_BOOST:  { combo: 16, duration: 6, label: 'DAMAGE x3' },
+  GOD_MODE:      { combo: 25, duration: 4, label: 'GOD MODE' },
 };
 
 export const ULTIMATE = {
@@ -155,7 +155,7 @@ export const ULTIMATE = {
 };
 
 export const AIRDROP = {
-  KILL_INTERVAL: 15,
+  KILL_INTERVAL: 12,
   PICKUP_RANGE: 5,
   LIFETIME: 30,
 };
