@@ -126,7 +126,7 @@ export const NPC_TYPES = {
   fast:        { health: 70,   speed: 9.0,   scale: 0.85, bodyColor: 0xcc4400, coinDrop: 20,  dmg: 20,  name: 'Runner',      xp: 2,  tier: 'normal', weakness: null },
   tank:        { health: 220,  speed: 8.0,   scale: 1.35, bodyColor: 0x2d1b69, coinDrop: 30,  dmg: 25,  name: 'Tank',        xp: 3,  tier: 'normal', weakness: null },
   shield:      { health: 120,  speed: 6.0,   scale: 1.1,  bodyColor: 0x2a5a2a, coinDrop: 25,  dmg: 15,  name: 'Shield',      xp: 2,  tier: 'normal', weakness: null },
-  boss:        { health: 3000, speed: 9.5,   scale: 2.5,  bodyColor: 0x4a0080, coinDrop: 300, dmg: 80,  name: 'BOSS',        xp: 15, tier: 'boss',   weakness: null },
+  boss:        { health: 3000, speed: 9.5,   scale: 2.5,  bodyColor: 0x4a0080, coinDrop: 300, dmg: 45,  name: 'BOSS',        xp: 15, tier: 'boss',   weakness: null },
   // Rare (100+ kills)
   brute:       { health: 300,  speed: 6.5,   scale: 1.5,  bodyColor: 0xb03030, coinDrop: 60,  dmg: 35,  name: 'Brute',       xp: 5,  tier: 'rare',   weakness: 'melee' },
   stalker:     { health: 200,  speed: 11.0,  scale: 0.9,  bodyColor: 0x664400, coinDrop: 50,  dmg: 25,  name: 'Stalker',     xp: 5,  tier: 'rare',   weakness: 'pistol' },
@@ -135,6 +135,44 @@ export const NPC_TYPES = {
   reaper:      { health: 800,  speed: 10.0,  scale: 1.6,  bodyColor: 0x1a0033, coinDrop: 120, dmg: 50,  name: 'Reaper',      xp: 10, tier: 'unique', weakness: 'pistol' },
   juggernaut:  { health: 1200, speed: 5.5,   scale: 1.8,  bodyColor: 0x333344, coinDrop: 150, dmg: 60,  name: 'Juggernaut',  xp: 12, tier: 'unique', weakness: 'melee' },
   banshee:     { health: 500,  speed: 13.0,  scale: 1.0,  bodyColor: 0x002244, coinDrop: 100, dmg: 40,  name: 'Banshee',     xp: 8,  tier: 'unique', weakness: 'pistol' },
+};
+
+export const KILLSTREAK = {
+  INFINITE_AMMO: { combo: 10, duration: 5, label: 'INFINITE AMMO' },
+  SPEED_BOOST:   { combo: 15, duration: 5, label: 'SPEED BOOST' },
+  DAMAGE_BOOST:  { combo: 20, duration: 5, label: 'DAMAGE x3' },
+  GOD_MODE:      { combo: 30, duration: 3, label: 'GOD MODE' },
+};
+
+export const ULTIMATE = {
+  CHARGE_NORMAL: 5,
+  CHARGE_RARE: 10,
+  CHARGE_UNIQUE: 15,
+  CHARGE_BOSS: 50,
+  RADIUS: 25,
+  DAMAGE_MULTI: 10,
+  SLOWMO_DURATION: 3,
+};
+
+export const AIRDROP = {
+  KILL_INTERVAL: 15,
+  PICKUP_RANGE: 5,
+  LIFETIME: 30,
+};
+
+export const BARREL = {
+  COUNT: 12,
+  EXPLOSION_RADIUS: 10,
+  EXPLOSION_DAMAGE: 200,
+  RESPAWN_TIME: 20,
+};
+
+export const BONUS_ROUND = {
+  KILL_INTERVAL: 50,
+  DURATION: 20,
+  SPAWN_COUNT: 20,
+  COIN_MULTI: 3,
+  XP_MULTI: 2,
 };
 
 export const EVENTS = {
@@ -150,4 +188,6 @@ export const EVENTS = {
   NPC_UPDATE: 'npc:update',
   NPC_DEATH: 'npc:death',
   CHAT_MESSAGE: 'chat:message',
+  GAME_STATE_SYNC: 'game:state_sync',
+  NPC_KILL: 'npc:kill',
 };

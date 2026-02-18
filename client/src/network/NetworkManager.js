@@ -36,12 +36,22 @@ export class NetworkManager {
     // ─── Event handlers ───
 
     // Existing players when joining
-    this.socket.on(EVENTS.STATE_UPDATE, (players) => {
+    this.socket.on(EVENTS.STATE_UPDATE, (payload) => {
+      const players = payload.players || payload;
       for (const [id, data] of Object.entries(players)) {
         if (id !== this.socket.id) {
           this.game.addRemotePlayer(id, data);
         }
       }
+      // Sync room state on join
+      if (payload.roomState) {
+        this.game.syncGameState(payload.roomState);
+      }
+    });
+
+    // Game state sync (from server on NPC kills)
+    this.socket.on(EVENTS.GAME_STATE_SYNC, (state) => {
+      this.game.syncGameState(state);
     });
 
     // New player joined
@@ -105,6 +115,11 @@ export class NetworkManager {
   sendReload() {
     if (!this.connected) return;
     this.socket.emit(EVENTS.PLAYER_RELOAD);
+  }
+
+  sendNPCKill(isBoss) {
+    if (!this.connected) return;
+    this.socket.emit(EVENTS.NPC_KILL, { isBoss });
   }
 
   disconnect() {

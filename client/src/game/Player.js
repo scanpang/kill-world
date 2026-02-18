@@ -45,6 +45,12 @@ export class Player {
     this.fireRateBonus = 0;      // +10% per purchase
     this.damageBonus = 0;        // +10% per purchase
 
+    // Buff states (managed by Game.js)
+    this.godMode = false;
+    this.speedBuffActive = false;
+    this.poisonSlow = 0;  // poison slow timer
+    this.bansheeSlow = 0; // banshee slow timer
+
     // Map reference for collision
     this.map = null;
 
@@ -163,6 +169,9 @@ export class Player {
 
     const baseSpeed = this.isSprinting ? PLAYER.SPRINT_SPEED : PLAYER.SPEED;
     let speed = (baseSpeed + this.bonusSpeed) * (1 + this.speedBonus);
+    if (this.speedBuffActive) speed *= 2;
+    if (this.poisonSlow > 0) speed *= 0.7;
+    if (this.bansheeSlow > 0) speed *= 0.5;
 
     const forward = new THREE.Vector3(
       -Math.sin(this.rotation.y), 0, -Math.cos(this.rotation.y)
@@ -239,6 +248,7 @@ export class Player {
 
   takeDamage(amount) {
     if (this.isInSafeZone()) return;
+    if (this.godMode) return;
     this.health = Math.max(0, this.health - amount);
     if (this.health <= 0) this.die();
   }

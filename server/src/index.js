@@ -20,6 +20,10 @@ const io = new Server(server, {
 const players = new Map();
 const TEAM_COLORS = [0xe74c3c, 0x3498db, 0x2ecc71, 0xf39c12, 0x9b59b6, 0x1abc9c];
 
+// ─── Room State (host-synced) ───
+let roomState = { wave: 1, killCount: 0, bossKillCount: 0, zombieLevel: 1 };
+const joinOrder = []; // track connection order for host succession
+
 // ─── Socket Handling ───
 io.on('connection', (socket) => {
   console.log(`[Server] Player connected: ${socket.id}`);
@@ -39,10 +43,11 @@ io.on('connection', (socket) => {
   };
 
   players.set(socket.id, playerData);
+  joinOrder.push(socket.id);
 
-  // Send current state to new player
+  // Send current state to new player (include roomState)
   const currentPlayers = Object.fromEntries(players);
-  socket.emit(EVENTS.STATE_UPDATE, currentPlayers);
+  socket.emit(EVENTS.STATE_UPDATE, { players: currentPlayers, roomState });
 
   // Notify others
   socket.broadcast.emit(EVENTS.PLAYER_JOIN, playerData);
@@ -120,11 +125,31 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ─── NPC Kill (sync game state) ───
+  socket.on(EVENTS.NPC_KILL, (data) => {
+    roomState.killCount++;
+    if (data && data.isBoss) {
+      roomState.bossKillCount++;
+      roomState.wave = roomState.bossKillCount + 1;
+      roomState.zombieLevel++;
+    }
+    io.emit(EVENTS.GAME_STATE_SYNC, roomState);
+  });
+
   // ─── Disconnect ───
   socket.on('disconnect', () => {
     players.delete(socket.id);
+    const idx = joinOrder.indexOf(socket.id);
+    if (idx !== -1) joinOrder.splice(idx, 1);
+
     io.emit(EVENTS.PLAYER_LEAVE, socket.id);
     console.log(`[Server] Player disconnected: ${socket.id} | Online: ${players.size}`);
+
+    // Reset room state when all players leave
+    if (players.size === 0) {
+      roomState = { wave: 1, killCount: 0, bossKillCount: 0, zombieLevel: 1 };
+      console.log('[Server] All players left — roomState reset');
+    }
   });
 });
 

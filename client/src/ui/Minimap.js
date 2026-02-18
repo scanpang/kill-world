@@ -61,6 +61,15 @@ export class Minimap {
         ctx.beginPath();
         ctx.arc(ex, ey, 3, 0, Math.PI * 2);
         ctx.fill();
+      } else if (entity.type === 'airdrop') {
+        // Airdrop - gold pulsing dot
+        ctx.fillStyle = '#ffcc00';
+        ctx.beginPath();
+        ctx.arc(ex, ey, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 200, 0, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
       }
     }
 

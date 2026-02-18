@@ -14,6 +14,13 @@ export class NPCManager {
     this.totalKillCount = 0;
     this.zombieLevel = 1;
     this.lastGrowlTime = 0;
+
+    // Spitter projectiles
+    this.spitterProjectiles = [];
+
+    // Player reference (set by Game.js)
+    this.player = null;
+    this.hud = null;
   }
 
   spawnInitialNPCs() {
@@ -108,6 +115,9 @@ export class NPCManager {
       stateTimer: 0,
       attackCooldown: 0,
       aggroTimer: 0,
+      specialAttackTimer: type === 'spitter' ? 3 : type === 'banshee' ? 5 : type === 'boss' ? 6 : 0,
+      bossCharging: false,
+      bossChargeTimer: 0,
     };
 
     npc.mesh.position.set(x, 0, z);
@@ -604,6 +614,220 @@ export class NPCManager {
         window.__onNPCAttack(npc.damage);
       }
     }
+  }
+
+  updateSpecialAttacks(delta, playerPos) {
+    const px = playerPos.x, pz = playerPos.z;
+
+    for (const npc of this.npcs) {
+      if (!npc.alive) continue;
+
+      const npcPos = npc.mesh.position;
+      const dx = npcPos.x - px, dz = npcPos.z - pz;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+
+      // Boss charging
+      if (npc.isBoss && npc.bossCharging) {
+        npc.bossChargeTimer -= delta;
+        const target = new THREE.Vector3(px, 0, pz);
+        this.moveToward(npc, target, npc.speed * 3, delta);
+        if (npc.bossChargeTimer <= 0 || dist < 3) {
+          npc.bossCharging = false;
+          // Ground pound when charge ends near player
+          if (dist < 8) {
+            this.bossGroundPound(npc, playerPos);
+          }
+        }
+        continue;
+      }
+
+      if (npc.specialAttackTimer > 0) {
+        npc.specialAttackTimer -= delta;
+      }
+
+      // Spitter: shoot poison projectile
+      if (npc.type === 'spitter' && dist < 15 && npc.specialAttackTimer <= 0) {
+        npc.specialAttackTimer = 3;
+        this.fireSpitterProjectile(npc, playerPos);
+      }
+
+      // Banshee: scream
+      if (npc.type === 'banshee' && dist < 20 && npc.specialAttackTimer <= 0) {
+        npc.specialAttackTimer = 5;
+        this.bansheeScream(npc, playerPos);
+      }
+
+      // Boss: special attacks
+      if (npc.isBoss && npc.specialAttackTimer <= 0 && dist < 30) {
+        npc.specialAttackTimer = 6 + Math.random() * 4;
+        if (dist > 10 && Math.random() < 0.6) {
+          // Charge attack
+          npc.bossCharging = true;
+          npc.bossChargeTimer = 2;
+        } else if (dist < 12) {
+          // Ground pound
+          this.bossGroundPound(npc, playerPos);
+        }
+      }
+    }
+
+    // Update spitter projectiles
+    this.updateProjectiles(delta, playerPos);
+  }
+
+  fireSpitterProjectile(npc, playerPos) {
+    const geo = new THREE.SphereGeometry(0.3, 6, 6);
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x00ff44, emissive: 0x00ff22, emissiveIntensity: 0.8,
+      transparent: true, opacity: 0.8,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.userData.isEffect = true;
+
+    const start = npc.mesh.position.clone();
+    start.y = 2;
+    mesh.position.copy(start);
+
+    const dir = new THREE.Vector3(playerPos.x - start.x, 0, playerPos.z - start.z).normalize();
+    this.scene.add(mesh);
+    this.spitterProjectiles.push({ mesh, dir, speed: 18, life: 3 });
+  }
+
+  updateProjectiles(delta, playerPos) {
+    const px = playerPos.x, pz = playerPos.z;
+
+    for (let i = this.spitterProjectiles.length - 1; i >= 0; i--) {
+      const proj = this.spitterProjectiles[i];
+      proj.life -= delta;
+      proj.mesh.position.x += proj.dir.x * proj.speed * delta;
+      proj.mesh.position.z += proj.dir.z * proj.speed * delta;
+
+      // Check hit player
+      const dx = proj.mesh.position.x - px;
+      const dz = proj.mesh.position.z - pz;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+
+      if (dist < 1.5) {
+        // Hit player
+        if (typeof window.__onNPCAttack === 'function') {
+          window.__onNPCAttack(15);
+        }
+        // Apply poison slow
+        if (this.player) {
+          this.player.poisonSlow = 3;
+        }
+        if (this.hud) {
+          const vig = document.getElementById('vignette-poison');
+          if (vig) {
+            vig.classList.add('active');
+            setTimeout(() => vig.classList.remove('active'), 3000);
+          }
+        }
+        this.scene.remove(proj.mesh);
+        proj.mesh.geometry.dispose();
+        proj.mesh.material.dispose();
+        this.spitterProjectiles.splice(i, 1);
+        continue;
+      }
+
+      if (proj.life <= 0) {
+        this.scene.remove(proj.mesh);
+        proj.mesh.geometry.dispose();
+        proj.mesh.material.dispose();
+        this.spitterProjectiles.splice(i, 1);
+      }
+    }
+  }
+
+  bansheeScream(npc, playerPos) {
+    const dx = npc.mesh.position.x - playerPos.x;
+    const dz = npc.mesh.position.z - playerPos.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+
+    if (dist < 20 && this.player) {
+      this.player.bansheeSlow = 1.5;
+
+      // Screen shake via HUD
+      if (this.hud) {
+        this.hud.screenShake();
+        const vig = document.getElementById('vignette-banshee');
+        if (vig) {
+          vig.classList.add('active');
+          setTimeout(() => vig.classList.remove('active'), 1500);
+        }
+      }
+
+      // Sound
+      if (this.sound) this.sound.playZombieGrowl();
+    }
+
+    // Visual: pulse aura
+    const pulse = new THREE.Mesh(
+      new THREE.SphereGeometry(0.5, 12, 12),
+      new THREE.MeshBasicMaterial({
+        color: 0x44ccff, transparent: true, opacity: 0.5,
+      })
+    );
+    pulse.position.copy(npc.mesh.position);
+    pulse.position.y = 2;
+    pulse.userData.isEffect = true;
+    this.scene.add(pulse);
+
+    const startTime = performance.now();
+    const animatePulse = () => {
+      const t = (performance.now() - startTime) / 800;
+      if (t >= 1) {
+        this.scene.remove(pulse);
+        pulse.geometry.dispose();
+        pulse.material.dispose();
+        return;
+      }
+      pulse.scale.setScalar(1 + t * 15);
+      pulse.material.opacity = 0.5 * (1 - t);
+      requestAnimationFrame(animatePulse);
+    };
+    requestAnimationFrame(animatePulse);
+  }
+
+  bossGroundPound(npc, playerPos) {
+    const center = npc.mesh.position.clone();
+    const dx = playerPos.x - center.x;
+    const dz = playerPos.z - center.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+
+    if (dist < 8 && typeof window.__onNPCAttack === 'function') {
+      window.__onNPCAttack(Math.floor(npc.damage * 0.5));
+    }
+
+    // Ground shockwave visual
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(0.5, 1.5, 24),
+      new THREE.MeshBasicMaterial({
+        color: 0xff4400, transparent: true, opacity: 0.7, side: THREE.DoubleSide,
+      })
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.copy(center);
+    ring.position.y = 0.1;
+    ring.userData.isEffect = true;
+    this.scene.add(ring);
+
+    const startTime = performance.now();
+    const animateRing = () => {
+      const t = (performance.now() - startTime) / 600;
+      if (t >= 1) {
+        this.scene.remove(ring);
+        ring.geometry.dispose();
+        ring.material.dispose();
+        return;
+      }
+      ring.scale.setScalar(1 + t * 8);
+      ring.material.opacity = 0.7 * (1 - t);
+      requestAnimationFrame(animateRing);
+    };
+    requestAnimationFrame(animateRing);
+
+    if (this.hud) this.hud.screenShake();
   }
 
   moveToward(npc, target, speed, delta) {

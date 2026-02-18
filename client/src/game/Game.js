@@ -1,6 +1,6 @@
 // client/src/game/Game.js
 import * as THREE from 'three';
-import { NPC as NPC_CONST, NPC_TYPES, BOSS_WEAPONS_NORMAL, BOSS_WEAPONS_RARE, BOSS_WEAPONS_LEGENDARY, WEAPONS } from '../../../shared/constants.js';
+import { NPC as NPC_CONST, NPC_TYPES, BOSS_WEAPONS_NORMAL, BOSS_WEAPONS_RARE, BOSS_WEAPONS_LEGENDARY, WEAPONS, KILLSTREAK, ULTIMATE, AIRDROP, BONUS_ROUND } from '../../../shared/constants.js';
 import { SceneManager } from './SceneManager.js';
 import { Player } from './Player.js';
 import { MapBuilder } from './MapBuilder.js';
@@ -58,8 +58,29 @@ export class Game {
     // Slow motion
     this.slowMotionTimer = 0;
 
+    // Kill streak buffs
+    this.killStreakBuffs = { infiniteAmmo: 0, speedBoost: 0, damageBoost: 0, godMode: 0 };
+
+    // Multi-kill system
+    this.multiKillCount = 0;
+    this.multiKillTimer = 0;
+
+    // Air drops
+    this.airDrops = [];
+    this.airDropKillTracker = 0;
+
+    // Ultimate system
+    this.ultimateCharge = 0;
+
+    // Bonus round
+    this.bonusRound = { active: false, timer: 0, kills: 0, coins: 0, zombies: [] };
+
     // Weapon kill stats (for death screen)
     this.weaponKills = {};
+
+    // Connect NPC manager to player & HUD for special attacks
+    this.npcManager.player = this.player;
+    this.npcManager.hud = this.hud;
 
     // NPC attack → player damage
     window.__onNPCAttack = (damage) => {
@@ -68,6 +89,20 @@ export class Game {
         this.showDeathScreen();
       }
     };
+
+    // Ultimate key handler
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyQ') this.activateUltimate();
+    });
+
+    // Mobile ultimate button
+    const ultBtn = document.getElementById('btn-ult');
+    if (ultBtn) {
+      ultBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        this.activateUltimate();
+      }, { passive: false });
+    }
 
     // Remote players
     this.remotePlayers = new Map();
@@ -88,9 +123,21 @@ export class Game {
     this.loop();
   }
 
+  syncGameState(state) {
+    this.killCount = state.killCount;
+    this.bossKillCount = state.bossKillCount;
+    this.wave = state.wave;
+    this.npcManager.totalKillCount = state.killCount;
+    this.npcManager.zombieLevel = state.zombieLevel;
+    this.hud.updateKillCount(this.killCount);
+  }
+
   onNPCKill(npcIndex) {
     const npc = this.npcManager.npcs[npcIndex];
-    const coinDrop = npc.coinDrop || NPC_CONST.COIN_DROP;
+    this.network.sendNPCKill(npc.isBoss);
+    const isBonusZombie = npc._isBonusZombie;
+    const coinMul = isBonusZombie ? BONUS_ROUND.COIN_MULTI : 1;
+    const coinDrop = Math.floor((npc.coinDrop || NPC_CONST.COIN_DROP) * coinMul);
     this.player.addCoins(coinDrop);
     this.hud.showCoinPopup(coinDrop);
 
@@ -106,11 +153,34 @@ export class Game {
     if (this.comboCount === 10) {
       this.slowMotionTimer = 2.0;
       this.hud.showBossAlert('SLOW MOTION!');
+      this.killStreakBuffs.infiniteAmmo = KILLSTREAK.INFINITE_AMMO.duration;
+      this.hud.showBossAlert(KILLSTREAK.INFINITE_AMMO.label + '!');
+    }
+    if (this.comboCount === 15) {
+      this.killStreakBuffs.speedBoost = KILLSTREAK.SPEED_BOOST.duration;
+      this.hud.showBossAlert(KILLSTREAK.SPEED_BOOST.label + '!');
+    }
+    if (this.comboCount === 20) {
+      this.killStreakBuffs.damageBoost = KILLSTREAK.DAMAGE_BOOST.duration;
+      this.hud.showBossAlert(KILLSTREAK.DAMAGE_BOOST.label + '!');
+    }
+    if (this.comboCount === 30) {
+      this.killStreakBuffs.godMode = KILLSTREAK.GOD_MODE.duration;
+      this.hud.showBossAlert(KILLSTREAK.GOD_MODE.label + '!');
+      this.hud.showScreenFlash(0xffcc00);
+    }
+
+    // Multi-kill tracking (1.5s window)
+    this.multiKillTimer = 1.5;
+    this.multiKillCount++;
+    if (this.multiKillCount >= 2) {
+      this.hud.showMultiKill(this.multiKillCount);
     }
 
     // XP from kill
     const npcCfg = NPC_TYPES[npc.type] || NPC_TYPES.normal;
     let xpGain = npcCfg.xp || 1;
+    if (isBonusZombie) xpGain *= BONUS_ROUND.XP_MULTI;
 
     // Combo XP bonus: 5+ kills = +10%
     if (this.comboCount >= 5) {
@@ -138,6 +208,29 @@ export class Game {
     this.killCount++;
     this.npcManager.totalKillCount = this.killCount;
     this.hud.updateKillCount(this.killCount);
+
+    // Ultimate charge
+    const tierCharge = { normal: ULTIMATE.CHARGE_NORMAL, rare: ULTIMATE.CHARGE_RARE, unique: ULTIMATE.CHARGE_UNIQUE, boss: ULTIMATE.CHARGE_BOSS };
+    const chargeAmt = tierCharge[npcCfg.tier] || ULTIMATE.CHARGE_NORMAL;
+    this.ultimateCharge = Math.min(100, this.ultimateCharge + chargeAmt);
+
+    // Airdrop trigger (every 15 kills)
+    this.airDropKillTracker++;
+    if (this.airDropKillTracker >= AIRDROP.KILL_INTERVAL) {
+      this.airDropKillTracker = 0;
+      this.spawnAirDrop();
+    }
+
+    // Bonus round trigger (every 50 kills)
+    if (this.killCount > 0 && this.killCount % BONUS_ROUND.KILL_INTERVAL === 0 && !this.bonusRound.active) {
+      this.startBonusRound();
+    }
+
+    // Bonus round kill tracking
+    if (this.bonusRound.active && npc._isBonusZombie) {
+      this.bonusRound.kills++;
+      this.bonusRound.coins += coinDrop;
+    }
 
     // Milestone alerts for new zombie tiers
     if (this.killCount === 100) {
@@ -204,6 +297,9 @@ export class Game {
 
       // Boss kill screen effect
       this.hud.showScreenFlash(0x8800ff);
+
+      // Boss kill: airdrop bonus
+      this.spawnAirDrop();
     } else {
       this.hud.addKillFeedEntry('You', npc.typeName || 'Zombie');
     }
@@ -286,12 +382,46 @@ export class Game {
       delta *= 0.3;
     }
 
+    // Kill streak buff timers
+    for (const key of Object.keys(this.killStreakBuffs)) {
+      if (this.killStreakBuffs[key] > 0) {
+        this.killStreakBuffs[key] -= realDelta;
+        if (this.killStreakBuffs[key] <= 0) this.killStreakBuffs[key] = 0;
+      }
+    }
+    this.player.speedBuffActive = this.killStreakBuffs.speedBoost > 0;
+    this.player.godMode = this.killStreakBuffs.godMode > 0;
+
+    // Player debuff timers
+    if (this.player.poisonSlow > 0) this.player.poisonSlow -= realDelta;
+    if (this.player.bansheeSlow > 0) this.player.bansheeSlow -= realDelta;
+
+    // Multi-kill timer
+    if (this.multiKillTimer > 0) {
+      this.multiKillTimer -= realDelta;
+      if (this.multiKillTimer <= 0) {
+        this.multiKillCount = 0;
+      }
+    }
+
+    // Bonus round timer
+    if (this.bonusRound.active) {
+      this.bonusRound.timer -= realDelta;
+      this.hud.updateBonusRound(true, this.bonusRound.timer, this.bonusRound.kills, this.bonusRound.coins);
+      if (this.bonusRound.timer <= 0) {
+        this.endBonusRound();
+      }
+    }
+
     this.mobileControls.update();
     this.physics.update(delta);
     this.player.update(delta);
     this.weapons.update(delta);
     this.npcManager.update(delta, this.player.getPosition());
+    this.npcManager.updateSpecialAttacks(delta, this.player.getPosition());
     this.updateRemotePlayers(delta);
+    this.updateAirDrops(delta);
+    this.map.updateBarrels(delta);
 
     this.minimap.update(
       this.player.getPosition(),
@@ -320,6 +450,9 @@ export class Game {
       slots: this.weapons.slots,
     });
 
+    this.hud.updateBuffs(this.killStreakBuffs);
+    this.hud.updateUltimate(this.ultimateCharge);
+
     this.network.sendPosition(
       this.player.getPosition(),
       this.player.getRotationY(),
@@ -339,6 +472,9 @@ export class Game {
         entities.push({ type: 'npc', position: npc.mesh.position });
       }
     }
+    for (const drop of this.airDrops) {
+      entities.push({ type: 'airdrop', position: drop.mesh.position });
+    }
     return entities;
   }
 
@@ -351,6 +487,196 @@ export class Game {
         rp.mesh.rotation.y += (rp.targetRotationY - rp.mesh.rotation.y) * 0.15;
       }
     }
+  }
+
+  // ── Ultimate System ──
+  activateUltimate() {
+    if (this.ultimateCharge < 100 || this.gameOver) return;
+    this.ultimateCharge = 0;
+
+    // Screen flash
+    this.hud.showScreenFlash(0xffcc00);
+    this.hud.showBossAlert('NUCLEAR BLAST!');
+    this.hud.screenShake();
+
+    // Slow motion
+    this.slowMotionTimer = ULTIMATE.SLOWMO_DURATION;
+
+    // Damage all NPCs in radius
+    const pos = this.player.getPosition();
+    const killList = [];
+    for (let i = 0; i < this.npcManager.npcs.length; i++) {
+      const npc = this.npcManager.npcs[i];
+      if (!npc.alive) continue;
+      const dx = npc.mesh.position.x - pos.x;
+      const dz = npc.mesh.position.z - pos.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist <= ULTIMATE.RADIUS) {
+        const baseDmg = this.weapons.config ? this.weapons.config.damage : 50;
+        const damage = Math.floor(baseDmg * ULTIMATE.DAMAGE_MULTI);
+        this.npcManager.damageNPC(i, damage);
+        if (npc.health <= 0) killList.push(i);
+      }
+    }
+    for (const idx of killList) {
+      this.onNPCKill(idx);
+    }
+
+    // Explosion visual at player position
+    const center = new THREE.Vector3(pos.x, 1, pos.z);
+    this.weapons.createExplosionEffect(center, ULTIMATE.RADIUS);
+  }
+
+  // ── AirDrop System ──
+  spawnAirDrop() {
+    const half = 80;
+    const x = (Math.random() - 0.5) * half * 2;
+    const z = (Math.random() - 0.5) * half * 2;
+
+    const group = new THREE.Group();
+
+    // Box body
+    const boxGeo = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+    const boxMat = new THREE.MeshStandardMaterial({
+      color: 0xffcc00, emissive: 0xffaa00, emissiveIntensity: 0.5,
+      metalness: 0.4, roughness: 0.3,
+    });
+    const box = new THREE.Mesh(boxGeo, boxMat);
+    box.position.y = 1.5;
+    box.castShadow = true;
+
+    // Glow beacon
+    const beaconGeo = new THREE.CylinderGeometry(0.05, 0.05, 8, 4);
+    const beaconMat = new THREE.MeshBasicMaterial({
+      color: 0xffcc00, transparent: true, opacity: 0.4,
+    });
+    const beacon = new THREE.Mesh(beaconGeo, beaconMat);
+    beacon.position.y = 5;
+
+    // Base ring
+    const ringGeo = new THREE.RingGeometry(1.5, 2, 24);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0xffcc00, transparent: true, opacity: 0.3, side: THREE.DoubleSide,
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.05;
+
+    group.add(box, beacon, ring);
+    group.position.set(x, 0, z);
+    group.userData.isEffect = true;
+    group.traverse(c => { c.userData.isEffect = true; });
+    this.scene.add(group);
+
+    const drop = { mesh: group, box, life: AIRDROP.LIFETIME, collected: false };
+    this.airDrops.push(drop);
+    this.hud.showAirdropAlert();
+  }
+
+  updateAirDrops(delta) {
+    const pos = this.player.getPosition();
+
+    for (let i = this.airDrops.length - 1; i >= 0; i--) {
+      const drop = this.airDrops[i];
+      drop.life -= delta;
+
+      // Float animation
+      drop.box.position.y = 1.5 + Math.sin(performance.now() * 0.003) * 0.3;
+      drop.box.rotation.y += delta * 0.8;
+
+      // Check pickup
+      const dx = drop.mesh.position.x - pos.x;
+      const dz = drop.mesh.position.z - pos.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+
+      if (dist < AIRDROP.PICKUP_RANGE && !drop.collected) {
+        drop.collected = true;
+        this.collectAirDrop(drop);
+        this.scene.remove(drop.mesh);
+        this.airDrops.splice(i, 1);
+        continue;
+      }
+
+      // Expire
+      if (drop.life <= 0) {
+        this.scene.remove(drop.mesh);
+        this.airDrops.splice(i, 1);
+      }
+    }
+  }
+
+  collectAirDrop(drop) {
+    const rewards = [
+      () => {
+        this.player.health = Math.min(this.player.health + Math.floor(this.player.maxHealth * 0.5), this.player.maxHealth);
+        this.hud.showBossAlert('HP +50%!');
+      },
+      () => {
+        const coins = 100 + Math.floor(Math.random() * 200);
+        this.player.addCoins(coins);
+        this.hud.showCoinPopup(coins);
+        this.hud.showBossAlert(`$${coins} COINS!`);
+      },
+      () => {
+        // Full ammo refill
+        for (const slot of this.weapons.slots) {
+          if (slot && WEAPONS[slot]) {
+            this.weapons.slotAmmo[slot] = this.weapons.getEffectiveMaxAmmo(slot);
+          }
+        }
+        this.weapons.currentAmmo = this.weapons.getEffectiveMaxAmmo(this.weapons.currentWeaponId);
+        this.hud.showBossAlert('FULL AMMO!');
+      },
+      () => {
+        this.killStreakBuffs.damageBoost = 8;
+        this.hud.showBossAlert('DAMAGE x3 (8s)!');
+      },
+      () => {
+        this.killStreakBuffs.speedBoost = 8;
+        this.hud.showBossAlert('SPEED x2 (8s)!');
+      },
+    ];
+    rewards[Math.floor(Math.random() * rewards.length)]();
+    this.hud.showScreenFlash(0x44ff88);
+  }
+
+  // ── Bonus Round System ──
+  startBonusRound() {
+    this.bonusRound.active = true;
+    this.bonusRound.timer = BONUS_ROUND.DURATION;
+    this.bonusRound.kills = 0;
+    this.bonusRound.coins = 0;
+
+    this.hud.showBossAlert('BONUS ROUND!');
+    this.hud.showScreenFlash(0xffcc00);
+
+    // Spawn bonus zombies
+    for (let i = 0; i < BONUS_ROUND.SPAWN_COUNT; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 20 + Math.random() * 30;
+      const x = Math.cos(angle) * dist;
+      const z = Math.sin(angle) * dist;
+      const npc = this.npcManager.spawnNPC(x, z, 'normal');
+      npc._isBonusZombie = true;
+      npc.health = Math.floor(npc.health * 0.5);
+      npc.maxHealth = npc.health;
+      this.bonusRound.zombies.push(npc);
+    }
+  }
+
+  endBonusRound() {
+    this.bonusRound.active = false;
+    this.hud.updateBonusRound(false, 0, 0, 0);
+    this.hud.showBonusRoundEnd(this.bonusRound.kills, this.bonusRound.coins);
+
+    // Remove remaining bonus zombies
+    for (const npc of this.bonusRound.zombies) {
+      if (npc.alive) {
+        npc.alive = false;
+        this.scene.remove(npc.mesh);
+      }
+    }
+    this.bonusRound.zombies = [];
   }
 
   addRemotePlayer(id, data) {

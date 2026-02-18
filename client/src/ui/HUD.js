@@ -21,6 +21,15 @@ export class HUD {
     this.xpFillEl = document.getElementById('xp-fill');
     this.comboEl = document.getElementById('combo-counter');
     this.stageInfoEl = document.getElementById('stage-info');
+    this.multiKillEl = document.getElementById('multi-kill');
+    this.buffContainer = document.getElementById('buff-container');
+    this.ultLabelEl = document.getElementById('ultimate-label');
+    this.ultFillEl = document.getElementById('ultimate-fill');
+    this.ultPctEl = document.getElementById('ultimate-pct');
+    this.airdropAlertEl = document.getElementById('airdrop-alert');
+    this.bonusRoundEl = document.getElementById('bonus-round');
+    this.bonusTimerEl = document.getElementById('bonus-round-timer');
+    this.bonusStatsEl = document.getElementById('bonus-round-stats');
     this.shopOpen = false;
     this.shopAvailable = false; // Only available after boss kill
     this.game = null;
@@ -469,5 +478,82 @@ export class HUD {
     this.killFeed.prepend(entry);
     while (this.killFeed.children.length > 5) this.killFeed.lastChild.remove();
     setTimeout(() => { if (entry.parentNode) entry.remove(); }, 5000);
+  }
+
+  showMultiKill(count) {
+    if (!this.multiKillEl) return;
+    const texts = {
+      2: { text: 'DOUBLE KILL!', color: '#ffffff' },
+      3: { text: 'TRIPLE KILL!', color: '#ffcc00' },
+      4: { text: 'QUAD KILL!', color: '#ff8800' },
+    };
+    const cfg = texts[count] || { text: 'MONSTER KILL!', color: '#ff2222' };
+    this.multiKillEl.textContent = cfg.text;
+    this.multiKillEl.style.color = cfg.color;
+    this.multiKillEl.style.textShadow = `0 0 20px ${cfg.color}`;
+    this.multiKillEl.classList.remove('show');
+    void this.multiKillEl.offsetWidth; // force reflow
+    this.multiKillEl.classList.add('show');
+    if (count >= 5) this.screenShake();
+    setTimeout(() => this.multiKillEl.classList.remove('show'), 1500);
+  }
+
+  updateBuffs(buffs) {
+    if (!this.buffContainer) return;
+    this.buffContainer.innerHTML = '';
+    const defs = [
+      { key: 'infiniteAmmo', label: 'AMMO', cls: 'infinite-ammo' },
+      { key: 'speedBoost', label: 'SPEED', cls: 'speed-boost' },
+      { key: 'damageBoost', label: 'DMG x3', cls: 'damage-boost' },
+      { key: 'godMode', label: 'GOD', cls: 'god-mode' },
+    ];
+    for (const def of defs) {
+      if (buffs[def.key] > 0) {
+        const el = document.createElement('div');
+        el.className = `buff-icon ${def.cls}`;
+        el.innerHTML = `<span class="buff-name">${def.label}</span><span class="buff-timer">${Math.ceil(buffs[def.key])}s</span>`;
+        this.buffContainer.appendChild(el);
+      }
+    }
+  }
+
+  updateUltimate(charge) {
+    if (this.ultFillEl) {
+      this.ultFillEl.style.width = charge + '%';
+      this.ultFillEl.classList.toggle('full', charge >= 100);
+    }
+    if (this.ultLabelEl) {
+      this.ultLabelEl.classList.toggle('ready', charge >= 100);
+    }
+    if (this.ultPctEl) {
+      this.ultPctEl.textContent = Math.floor(charge) + '%';
+    }
+    // Mobile button
+    const btn = document.getElementById('btn-ult');
+    if (btn) btn.classList.toggle('ready', charge >= 100);
+  }
+
+  showAirdropAlert() {
+    if (!this.airdropAlertEl) return;
+    this.airdropAlertEl.textContent = 'SUPPLY DROP!';
+    this.airdropAlertEl.classList.remove('show');
+    void this.airdropAlertEl.offsetWidth;
+    this.airdropAlertEl.classList.add('show');
+    setTimeout(() => this.airdropAlertEl.classList.remove('show'), 3000);
+  }
+
+  updateBonusRound(active, timer, kills, coins) {
+    if (!this.bonusRoundEl) return;
+    if (active) {
+      this.bonusRoundEl.classList.add('active');
+      if (this.bonusTimerEl) this.bonusTimerEl.textContent = `${Math.ceil(timer)}s`;
+      if (this.bonusStatsEl) this.bonusStatsEl.textContent = `Kills: ${kills} | Coins: ${coins}`;
+    } else {
+      this.bonusRoundEl.classList.remove('active');
+    }
+  }
+
+  showBonusRoundEnd(kills, coins) {
+    this.showBossAlert(`BONUS COMPLETE! ${kills} kills, $${coins} earned`);
   }
 }

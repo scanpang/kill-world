@@ -1,6 +1,6 @@
 // client/src/game/MapBuilder.js
 import * as THREE from 'three';
-import { GAME } from '../../../shared/constants.js';
+import { GAME, BARREL } from '../../../shared/constants.js';
 
 export class MapBuilder {
   constructor(sceneManager, physics) {
@@ -8,6 +8,7 @@ export class MapBuilder {
     this.physics = physics;
     this.objects = [];
     this.collisionBoxes = [];
+    this.barrels = [];
   }
 
   build() {
@@ -16,6 +17,7 @@ export class MapBuilder {
     this.createWalls();
     this.createCover();
     this.createDecorations();
+    this.createExplosiveBarrels();
   }
 
   createGround() {
@@ -203,6 +205,86 @@ export class MapBuilder {
       }
     }
     return { x, z };
+  }
+
+  createExplosiveBarrels() {
+    const positions = [
+      { x: -18, z: -8 }, { x: 22, z: -18 }, { x: -35, z: 15 },
+      { x: 38, z: 28 }, { x: -10, z: -35 }, { x: 15, z: 25 },
+      { x: -45, z: -40 }, { x: 45, z: -30 }, { x: -25, z: 35 },
+      { x: 28, z: 8 }, { x: -50, z: 5 }, { x: 5, z: -50 },
+    ];
+
+    for (const pos of positions) {
+      this.spawnBarrel(pos.x, pos.z);
+    }
+  }
+
+  spawnBarrel(x, z) {
+    const group = new THREE.Group();
+
+    const bodyGeo = new THREE.CylinderGeometry(0.6, 0.6, 1.8, 12);
+    const bodyMat = new THREE.MeshStandardMaterial({
+      color: 0xcc2222, emissive: 0x440000, emissiveIntensity: 0.3,
+    });
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.y = 0.9;
+    body.castShadow = true;
+
+    // Warning stripe
+    const stripeMat = new THREE.MeshStandardMaterial({
+      color: 0xffcc00, emissive: 0xffaa00, emissiveIntensity: 0.2,
+    });
+    const stripe = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.62, 0.62, 0.15, 12),
+      stripeMat
+    );
+    stripe.position.y = 1.2;
+
+    // Top cap
+    const capGeo = new THREE.CylinderGeometry(0.5, 0.6, 0.1, 12);
+    const cap = new THREE.Mesh(capGeo, new THREE.MeshStandardMaterial({ color: 0x333333 }));
+    cap.position.y = 1.8;
+
+    group.add(body, stripe, cap);
+    group.position.set(x, 0, z);
+    group.userData.isBarrel = true;
+    group.traverse(c => { c.userData.isBarrel = true; });
+    this.scene.add(group);
+
+    const barrel = { mesh: group, x, z, alive: true, respawnTimer: 0 };
+    this.barrels.push(barrel);
+    return barrel;
+  }
+
+  explodeBarrel(index) {
+    const barrel = this.barrels[index];
+    if (!barrel || !barrel.alive) return;
+    barrel.alive = false;
+    this.scene.remove(barrel.mesh);
+
+    // Respawn after BARREL.RESPAWN_TIME seconds
+    barrel.respawnTimer = BARREL.RESPAWN_TIME;
+  }
+
+  updateBarrels(delta) {
+    for (const barrel of this.barrels) {
+      if (!barrel.alive && barrel.respawnTimer > 0) {
+        barrel.respawnTimer -= delta;
+        if (barrel.respawnTimer <= 0) {
+          barrel.alive = true;
+          barrel.mesh.traverse(c => {
+            if (c.geometry) c.geometry.dispose();
+            if (c.material) c.material.dispose();
+          });
+          barrel.mesh = null;
+          // Recreate
+          const idx = this.barrels.indexOf(barrel);
+          this.barrels.splice(idx, 1);
+          this.spawnBarrel(barrel.x, barrel.z);
+        }
+      }
+    }
   }
 
   getCollidables() {

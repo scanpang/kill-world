@@ -1152,3 +1152,202 @@ canvas.screen-shake {
   80% { opacity: 1; }
   100% { opacity: 0; transform: translateX(-50%) translateY(-30px); }
 }
+
+/* ─── Multi-Kill Text ─── */
+#multi-kill {
+  position: absolute; top: 32%; left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 36px; font-weight: 900;
+  pointer-events: none; white-space: nowrap;
+  opacity: 0; z-index: 10;
+}
+#multi-kill.show {
+  animation: multiKillPop 1.5s ease-out forwards;
+}
+@keyframes multiKillPop {
+  0% { opacity: 0; transform: translateX(-50%) scale(0.3); }
+  15% { opacity: 1; transform: translateX(-50%) scale(1.4); }
+  30% { transform: translateX(-50%) scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-40px); }
+}
+
+/* ─── Active Buffs Display ─── */
+#buff-container {
+  position: absolute; bottom: 80px; left: 50%;
+  transform: translateX(-50%);
+  display: flex; gap: 8px;
+  pointer-events: none;
+}
+.buff-icon {
+  display: flex; flex-direction: column; align-items: center;
+  background: rgba(0,0,0,0.6);
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 8px; padding: 4px 10px;
+  font-family: 'Orbitron', sans-serif;
+  animation: buffPulse 1s ease-in-out infinite;
+}
+.buff-icon .buff-name {
+  font-size: 9px; font-weight: 700; color: #fff;
+  letter-spacing: 1px;
+}
+.buff-icon .buff-timer {
+  font-size: 14px; font-weight: 900; color: #ffcc00;
+}
+.buff-icon.infinite-ammo { border-color: #44aaff; }
+.buff-icon.infinite-ammo .buff-name { color: #44aaff; }
+.buff-icon.speed-boost { border-color: #00ff88; }
+.buff-icon.speed-boost .buff-name { color: #00ff88; }
+.buff-icon.damage-boost { border-color: #ff4444; }
+.buff-icon.damage-boost .buff-name { color: #ff4444; }
+.buff-icon.god-mode { border-color: #ffcc00; background: rgba(255,200,0,0.15); }
+.buff-icon.god-mode .buff-name { color: #ffcc00; }
+@keyframes buffPulse {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 1; }
+}
+
+/* ─── Ultimate Gauge ─── */
+#ultimate-container {
+  position: absolute; bottom: 30px; left: 50%;
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: 6px;
+  pointer-events: none;
+}
+#ultimate-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px; font-weight: 900;
+  color: #666; background: rgba(0,0,0,0.5);
+  border: 2px solid rgba(255,255,255,0.15);
+  border-radius: 6px; padding: 2px 8px;
+}
+#ultimate-label.ready {
+  color: #ffcc00; border-color: #ffcc00;
+  background: rgba(255,200,0,0.15);
+  animation: ultReady 1s ease-in-out infinite;
+}
+@keyframes ultReady {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,200,0,0); }
+  50% { box-shadow: 0 0 12px 2px rgba(255,200,0,0.5); }
+}
+#ultimate-bar {
+  width: 120px; height: 6px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px; overflow: hidden;
+}
+#ultimate-fill {
+  width: 0%; height: 100%;
+  background: linear-gradient(90deg, #ff6b35, #ffcc00);
+  border-radius: 3px; transition: width 0.3s ease;
+}
+#ultimate-fill.full {
+  background: linear-gradient(90deg, #ffcc00, #ffee88);
+  box-shadow: 0 0 8px rgba(255,200,0,0.6);
+}
+#ultimate-pct {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px; font-weight: 700; color: #888;
+}
+
+/* ─── Airdrop Alert ─── */
+#airdrop-alert {
+  position: absolute; top: 15%; left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 22px; font-weight: 900;
+  color: #44ff88;
+  text-shadow: 0 0 15px rgba(68,255,136,0.8);
+  opacity: 0; pointer-events: none; white-space: nowrap;
+}
+#airdrop-alert.show {
+  animation: airdropPop 3s ease-out forwards;
+}
+@keyframes airdropPop {
+  0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+  10% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ─── Bonus Round Overlay ─── */
+#bonus-round {
+  position: absolute; top: 8%; left: 50%;
+  transform: translateX(-50%);
+  text-align: center; pointer-events: none;
+  display: none;
+}
+#bonus-round.active { display: block; }
+#bonus-round-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 28px; font-weight: 900;
+  color: #ffcc00;
+  text-shadow: 0 0 20px rgba(255,200,0,0.8);
+  animation: bonusPulse 1s ease-in-out infinite;
+}
+@keyframes bonusPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+#bonus-round-timer {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 18px; font-weight: 700;
+  color: #fff; margin-top: 4px;
+}
+#bonus-round-stats {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 14px; font-weight: 600;
+  color: #69f0ae; margin-top: 2px;
+}
+
+/* ─── Vignette Effects ─── */
+.vignette {
+  position: fixed; inset: 0;
+  pointer-events: none; opacity: 0;
+  z-index: 90; transition: opacity 0.3s;
+}
+#vignette-poison {
+  box-shadow: inset 0 0 80px 30px rgba(0,180,0,0.5);
+}
+#vignette-poison.active { opacity: 1; }
+#vignette-banshee {
+  box-shadow: inset 0 0 100px 40px rgba(0,100,255,0.5);
+}
+#vignette-banshee.active { opacity: 1; }
+
+/* ─── Mobile Ultimate Button ─── */
+#btn-ult {
+  position: absolute; left: 160px; bottom: 110px;
+  width: 50px; height: 50px; border-radius: 50%;
+  border: 2px solid rgba(255,200,0,0.5);
+  background: rgba(255,200,0,0.15);
+  color: #fff; font-family: 'Orbitron', sans-serif;
+  font-size: 14px; font-weight: 900; touch-action: none;
+  transition: transform 0.1s, background 0.1s;
+}
+#btn-ult:active {
+  background: rgba(255,200,0,0.4);
+  transform: scale(0.9);
+}
+#btn-ult.ready {
+  border-color: #ffcc00;
+  box-shadow: 0 0 12px rgba(255,200,0,0.5);
+  animation: ultReady 1s ease-in-out infinite;
+}
+
+/* ─── Mobile adjustments for new features ─── */
+@media (max-width: 768px) {
+  #multi-kill { font-size: 22px; }
+  #ultimate-container {
+    bottom: calc(58px + env(safe-area-inset-bottom, 0px));
+  }
+  #ultimate-bar { width: 80px; }
+  #buff-container {
+    bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+  }
+  .buff-icon { padding: 2px 6px; }
+  .buff-icon .buff-name { font-size: 7px; }
+  .buff-icon .buff-timer { font-size: 11px; }
+  #bonus-round-title { font-size: 18px; }
+  #bonus-round-timer { font-size: 14px; }
+}

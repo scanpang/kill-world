@@ -1,6 +1,6 @@
 // client/src/game/WeaponSystem.js
 import * as THREE from 'three';
-import { WEAPONS, WEAPON_SLOTS, NPC_TYPES, WEAKNESS_DAMAGE_MULTIPLIER } from '../../../shared/constants.js';
+import { WEAPONS, WEAPON_SLOTS, NPC_TYPES, WEAKNESS_DAMAGE_MULTIPLIER, BARREL } from '../../../shared/constants.js';
 
 export class WeaponSystem {
   constructor(sceneManager, player) {
@@ -604,8 +604,13 @@ export class WeaponSystem {
     const now = performance.now();
     if (now - this.lastShotTime < this.getEffectiveFireRate()) return;
     this.lastShotTime = now;
-    this.currentAmmo--;
-    this.slotAmmo[this.currentWeaponId] = this.currentAmmo;
+
+    // Infinite ammo buff check
+    const hasInfiniteAmmo = this.game && this.game.killStreakBuffs && this.game.killStreakBuffs.infiniteAmmo > 0;
+    if (!hasInfiniteAmmo) {
+      this.currentAmmo--;
+      this.slotAmmo[this.currentWeaponId] = this.currentAmmo;
+    }
 
     if (this.currentAmmo <= 0 && this.config.reloadTime > 0 && !this.config.unique) {
       this.reload();
@@ -631,7 +636,8 @@ export class WeaponSystem {
     if (!this.game) return;
     const npcManager = this.game.npcManager;
     const baseDamage = this.config.damage;
-    let damage = Math.floor(baseDamage * this.player.damageMultiplier * (1 + this.player.damageBonus));
+    const dmgBoostMul = (this.game.killStreakBuffs && this.game.killStreakBuffs.damageBoost > 0) ? 3 : 1;
+    let damage = Math.floor(baseDamage * this.player.damageMultiplier * (1 + this.player.damageBonus) * dmgBoostMul);
 
     // Crit chance
     if (this.player.critChance > 0 && Math.random() < this.player.critChance) {
@@ -690,7 +696,8 @@ export class WeaponSystem {
     const origin = this.camera.getWorldPosition(new THREE.Vector3());
 
     const baseDamage = this.config.damage;
-    const damageMultiplier = this.player.damageMultiplier * (1 + this.player.damageBonus);
+    const dmgBoostMul = (this.game && this.game.killStreakBuffs && this.game.killStreakBuffs.damageBoost > 0) ? 3 : 1;
+    const damageMultiplier = this.player.damageMultiplier * (1 + this.player.damageBonus) * dmgBoostMul;
     const range = this.config.range;
 
     // Step 1: Find wall distance (skip NPC meshes, effects, player gun)
@@ -714,6 +721,30 @@ export class WeaponSystem {
         }
       }
     } catch (e) { /* raycaster error - use default range */ }
+
+    // Step 1.5: Check barrel hits
+    if (this.game && this.game.map) {
+      for (let i = 0; i < this.game.map.barrels.length; i++) {
+        const barrel = this.game.map.barrels[i];
+        if (!barrel.alive) continue;
+
+        const bx = barrel.x - origin.x;
+        const by = 0.9 - origin.y;
+        const bz = barrel.z - origin.z;
+        const proj = bx * direction.x + by * direction.y + bz * direction.z;
+        if (proj < 0 || proj > wallHitDist) continue;
+
+        const distSq = bx * bx + by * by + bz * bz;
+        const perpSq = distSq - proj * proj;
+        if (perpSq > 1.0) continue; // barrel radius ~0.6 + tolerance
+
+        // Hit barrel - explode it
+        const hitPoint = new THREE.Vector3(barrel.x, 0.9, barrel.z);
+        this.createTracer(origin, hitPoint);
+        this.barrelExplosion(i, hitPoint);
+        return;
+      }
+    }
 
     // Step 2: Check NPC hits using 3D ray-sphere test (no raycaster dependency)
     let hitNPC = null;
@@ -829,6 +860,45 @@ export class WeaponSystem {
       const endpoint = origin.clone().addScaledVector(direction, range);
       this.createTracer(origin, endpoint);
     }
+  }
+
+  /* ── Barrel Explosion ── */
+  barrelExplosion(barrelIndex, center) {
+    this.game.map.explodeBarrel(barrelIndex);
+    this.createExplosionEffect(center, BARREL.EXPLOSION_RADIUS);
+    if (this.sound) this.sound.playExplosion();
+
+    const npcManager = this.game.npcManager;
+    const killList = [];
+    for (let i = 0; i < npcManager.npcs.length; i++) {
+      const npc = npcManager.npcs[i];
+      if (!npc.alive) continue;
+      const dx = npc.mesh.position.x - center.x;
+      const dz = npc.mesh.position.z - center.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist <= BARREL.EXPLOSION_RADIUS) {
+        const falloff = 1.0 - (dist / BARREL.EXPLOSION_RADIUS) * 0.7;
+        const damage = Math.floor(BARREL.EXPLOSION_DAMAGE * falloff);
+        npcManager.damageNPC(i, damage);
+        if (npc.health <= 0) killList.push(i);
+      }
+    }
+    for (const idx of killList) {
+      this.game.onNPCKill(idx);
+    }
+
+    // Chain explosion: check nearby barrels
+    for (let i = 0; i < this.game.map.barrels.length; i++) {
+      const other = this.game.map.barrels[i];
+      if (!other.alive || i === barrelIndex) continue;
+      const dx = other.x - center.x;
+      const dz = other.z - center.z;
+      if (Math.sqrt(dx * dx + dz * dz) < BARREL.EXPLOSION_RADIUS) {
+        setTimeout(() => this.barrelExplosion(i, new THREE.Vector3(other.x, 0.9, other.z)), 200);
+      }
+    }
+
+    this.game.hud.screenShake();
   }
 
   /* ── Explosion (Rocket Launcher AOE) ── */
