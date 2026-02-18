@@ -1045,13 +1045,11 @@ export class NPCManager {
 
     if (npc.health <= 0) {
       npc.alive = false;
-      this.totalKillCount++;
       if (this.sound) this.sound.playZombieDeath();
       this.scene.remove(npc.mesh);
 
       if (npc.isBoss) {
         this.bossAlive = false;
-        this.bossKillCount++;
         return;
       }
 

@@ -829,7 +829,8 @@ export class WeaponSystem {
       }
 
       // Co-op: guest sends damage to host instead of applying locally
-      const isGuest = this.game && this.game.network && !this.game.network.isHost;
+      // Must be connected AND explicitly not host; otherwise apply locally (solo/host mode)
+      const isGuest = this.game && this.game.network && this.game.network.connected && !this.game.network.isHost;
 
       if (isGuest) {
         // Guest: send damage request to host via server
@@ -884,22 +885,41 @@ export class WeaponSystem {
     if (this.sound) this.sound.playExplosion();
 
     const npcManager = this.game.npcManager;
-    const killList = [];
-    for (let i = 0; i < npcManager.npcs.length; i++) {
-      const npc = npcManager.npcs[i];
-      if (!npc.alive) continue;
-      const dx = npc.mesh.position.x - center.x;
-      const dz = npc.mesh.position.z - center.z;
-      const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist <= BARREL.EXPLOSION_RADIUS) {
-        const falloff = 1.0 - (dist / BARREL.EXPLOSION_RADIUS) * 0.7;
-        const damage = Math.floor(BARREL.EXPLOSION_DAMAGE * falloff);
-        npcManager.damageNPC(i, damage);
-        if (npc.health <= 0) killList.push(i);
+    const isGuest = this.game && this.game.network && this.game.network.connected && !this.game.network.isHost;
+
+    if (isGuest) {
+      // Guest: send barrel explosion damage to host
+      for (let i = 0; i < npcManager.npcs.length; i++) {
+        const npc = npcManager.npcs[i];
+        if (!npc.alive) continue;
+        const dx = npc.mesh.position.x - center.x;
+        const dz = npc.mesh.position.z - center.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist <= BARREL.EXPLOSION_RADIUS) {
+          const falloff = 1.0 - (dist / BARREL.EXPLOSION_RADIUS) * 0.7;
+          const damage = Math.floor(BARREL.EXPLOSION_DAMAGE * falloff);
+          this.game.network.sendNPCDamage({ npcId: i, damage, isHeadshot: false });
+        }
       }
-    }
-    for (const idx of killList) {
-      this.game.onNPCKill(idx);
+    } else {
+      // Host/solo: apply damage locally
+      const killList = [];
+      for (let i = 0; i < npcManager.npcs.length; i++) {
+        const npc = npcManager.npcs[i];
+        if (!npc.alive) continue;
+        const dx = npc.mesh.position.x - center.x;
+        const dz = npc.mesh.position.z - center.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist <= BARREL.EXPLOSION_RADIUS) {
+          const falloff = 1.0 - (dist / BARREL.EXPLOSION_RADIUS) * 0.7;
+          const damage = Math.floor(BARREL.EXPLOSION_DAMAGE * falloff);
+          npcManager.damageNPC(i, damage);
+          if (npc.health <= 0) killList.push(i);
+        }
+      }
+      for (const idx of killList) {
+        this.game.onNPCKill(idx);
+      }
     }
 
     // Chain explosion: check nearby barrels
@@ -920,7 +940,7 @@ export class WeaponSystem {
   applyExplosion(center, directDamage, damageMultiplier) {
     const radius = this.config.explosionRadius || 8;
     const npcManager = this.game.npcManager;
-    const isGuest = this.game && this.game.network && !this.game.network.isHost;
+    const isGuest = this.game && this.game.network && this.game.network.connected && !this.game.network.isHost;
 
     // Visual explosion effect (always show)
     this.createExplosionEffect(center, radius);

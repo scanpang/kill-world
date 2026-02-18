@@ -120,21 +120,25 @@ export class Game {
     this.player.init();
     this.mobileControls.init();
     this.network.connect();
-    // NPCs will be spawned after HOST_ASSIGN event
-    // For now, spawn as host (will be overridden if guest)
-    setTimeout(() => {
-      if (this.npcManager.isHost && this.npcManager.npcs.length === 0) {
+    // NPCs will be spawned after HOST_ASSIGN event or after timeout (solo play fallback)
+    this._npcSpawnTimeout = setTimeout(() => {
+      if (this.npcManager.npcs.length === 0) {
         this.npcManager.spawnInitialNPCs();
       }
-    }, 1000);
+    }, 2000);
     this.loop();
   }
 
   syncGameState(state) {
-    this.killCount = state.killCount;
-    this.bossKillCount = state.bossKillCount;
+    // Only overwrite if server value is higher (prevents race condition on fast kills)
+    if (state.killCount >= this.killCount) {
+      this.killCount = state.killCount;
+      this.npcManager.totalKillCount = state.killCount;
+    }
+    if (state.bossKillCount >= this.bossKillCount) {
+      this.bossKillCount = state.bossKillCount;
+    }
     this.wave = state.wave;
-    this.npcManager.totalKillCount = state.killCount;
     this.npcManager.zombieLevel = state.zombieLevel;
     if (state.bossAlive !== undefined) {
       this.npcManager.bossAlive = state.bossAlive;
@@ -149,6 +153,22 @@ export class Game {
     this.npcManager.becomeHost();
     if (roomState) {
       this.syncGameState(roomState);
+    }
+    // Cancel pending NPC spawn timeout since becomeHost handles it
+    if (this._npcSpawnTimeout) {
+      clearTimeout(this._npcSpawnTimeout);
+      this._npcSpawnTimeout = null;
+    }
+  }
+
+  // ─── Co-op: Become guest ───
+  onBecomeGuest() {
+    console.log('[Game] Becoming guest');
+    this.npcManager.isHost = false;
+    // Cancel pending NPC spawn timeout - guests don't spawn NPCs
+    if (this._npcSpawnTimeout) {
+      clearTimeout(this._npcSpawnTimeout);
+      this._npcSpawnTimeout = null;
     }
   }
 
@@ -647,22 +667,41 @@ export class Game {
 
     // Damage all NPCs in radius
     const pos = this.player.getPosition();
-    const killList = [];
-    for (let i = 0; i < this.npcManager.npcs.length; i++) {
-      const npc = this.npcManager.npcs[i];
-      if (!npc.alive) continue;
-      const dx = npc.mesh.position.x - pos.x;
-      const dz = npc.mesh.position.z - pos.z;
-      const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist <= ULTIMATE.RADIUS) {
-        const baseDmg = this.weapons.config ? this.weapons.config.damage : 50;
-        const damage = Math.floor(baseDmg * ULTIMATE.DAMAGE_MULTI);
-        this.npcManager.damageNPC(i, damage);
-        if (npc.health <= 0) killList.push(i);
+    const isGuest = this.network && this.network.connected && !this.network.isHost;
+
+    if (isGuest) {
+      // Guest: send damage to host for each NPC in radius
+      for (let i = 0; i < this.npcManager.npcs.length; i++) {
+        const npc = this.npcManager.npcs[i];
+        if (!npc.alive) continue;
+        const dx = npc.mesh.position.x - pos.x;
+        const dz = npc.mesh.position.z - pos.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist <= ULTIMATE.RADIUS) {
+          const baseDmg = this.weapons.config ? this.weapons.config.damage : 50;
+          const damage = Math.floor(baseDmg * ULTIMATE.DAMAGE_MULTI);
+          this.network.sendNPCDamage({ npcId: i, damage, isHeadshot: false });
+        }
       }
-    }
-    for (const idx of killList) {
-      this.onNPCKill(idx);
+    } else {
+      // Host/solo: apply damage locally
+      const killList = [];
+      for (let i = 0; i < this.npcManager.npcs.length; i++) {
+        const npc = this.npcManager.npcs[i];
+        if (!npc.alive) continue;
+        const dx = npc.mesh.position.x - pos.x;
+        const dz = npc.mesh.position.z - pos.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist <= ULTIMATE.RADIUS) {
+          const baseDmg = this.weapons.config ? this.weapons.config.damage : 50;
+          const damage = Math.floor(baseDmg * ULTIMATE.DAMAGE_MULTI);
+          this.npcManager.damageNPC(i, damage);
+          if (npc.health <= 0) killList.push(i);
+        }
+      }
+      for (const idx of killList) {
+        this.onNPCKill(idx);
+      }
     }
 
     // Explosion visual at player position

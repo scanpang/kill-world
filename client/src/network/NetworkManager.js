@@ -60,6 +60,9 @@ export class NetworkManager {
       if (data.isHost && !wasHost) {
         // Became host (either first join or migration)
         this.game.onBecomeHost(data.roomState || null);
+      } else if (!data.isHost) {
+        // This player is a guest
+        this.game.onBecomeGuest();
       }
     });
 
